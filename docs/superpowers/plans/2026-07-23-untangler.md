@@ -24,7 +24,7 @@ Every task implicitly includes these. Copy-exact values; do not improvise.
 - CSS class for the drag preview: `.untangler-zone-preview`.
 - Rects are plain objects `{x, y, width, height}` (integers, logical pixels) everywhere outside Mutter calls.
 - Gaps object shape: `{outer: int, inner: int}`.
-- Test command: `npm test` (runs `node --test tests/`). Syntax check: `npm run check`.
+- Test command: `npm test` (runs bare `node --test`, which auto-discovers `tests/*.test.js`; a directory positional arg is broken on Node 24). Syntax check: `npm run check`.
 - Commit after every task with the message given in the task. Working directly on `main` (fresh repo, no remote).
 
 ## Repository Layout (final state)
@@ -104,7 +104,7 @@ Create `package.json`:
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/",
+    "test": "node --test",
     "check": "for f in 'untangler@nebojsa.ilic'/*.js; do node --check \"$f\" || exit 1; done"
   }
 }
