@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/",
+    "test": "node --test",
     "check": "for f in 'untangler@nebojsa.ilic'/*.js; do node --check \"$f\" || exit 1; done"
   }
 }
