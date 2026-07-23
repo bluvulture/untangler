@@ -2109,7 +2109,7 @@ gnome-extensions pack 'untangler@nebojsa.ilic' \
   --force --out-dir=.
 ```
 
-Expected: creates `untangler@nebojsa.ilic.shell-extension.zip` in the repo root (git-ignored). Then `unzip -l 'untangler@nebojsa.ilic.shell-extension.zip'` must list: extension.js, prefs.js, metadata.json, stylesheet.css, all 7 modules, schemas/gschemas.compiled.
+Expected: creates `untangler@nebojsa.ilic.shell-extension.zip` in the repo root (git-ignored). Then `unzip -l 'untangler@nebojsa.ilic.shell-extension.zip'` must list: extension.js, prefs.js, metadata.json, stylesheet.css, all 7 modules, and `schemas/org.gnome.shell.extensions.untangler.gschema.xml` (pack ships the XML; the schema is compiled at install time by `gnome-extensions install` / EGO, not at pack time).
 
 - [ ] **Step 5: Final verification**
 
