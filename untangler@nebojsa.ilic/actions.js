@@ -37,7 +37,7 @@ export class ActionDispatcher {
         // Lazy manual-change detection: a manual move/resize since our
         // last snap resets the cycle and invalidates restore geometry.
         let record = this._records.get(win);
-        if (record?.lastApplied &&
+        if (record?.lastApplied && !record.settling &&
             !rectsEqual(frame, record.lastApplied, MANUAL_CHANGE_TOLERANCE)) {
             this._records.delete(win);
             this._cycles.reset(id);
@@ -82,9 +82,7 @@ export class ActionDispatcher {
         if (!this._mover.canResize(win))
             return;
         const rect = zoneRect(zone, workArea, this._gaps());
-        const record = this._ensureRecord(win, frame);
-        record.lastApplied = rect;
-        this._mover.apply(win, rect);
+        this._applyTracked(win, this._ensureRecord(win, frame), rect);
     }
 
     _gaps() {
@@ -97,10 +95,26 @@ export class ActionDispatcher {
     _ensureRecord(win, frame) {
         let record = this._records.get(win);
         if (!record) {
-            record = { original: { ...frame }, lastApplied: null };
+            record = { original: { ...frame }, lastApplied: null, settling: false };
             this._records.set(win, record);
         }
         return record;
+    }
+
+    // Route every tracked placement through the mover's settle callback:
+    // the final rect can legitimately differ from the requested one
+    // (min-size clamp → read-back re-centering), and treating that as a
+    // manual move would wrongly reset the cycle and drop restore geometry.
+    _applyTracked(win, record, rect, resize = true) {
+        record.settling = true;
+        record.lastApplied = rect;
+        this._mover.apply(win, rect, {
+            resize,
+            onSettled: finalRect => {
+                record.lastApplied = finalRect;
+                record.settling = false;
+            },
+        });
     }
 
     _snap(win, id, frame, action) {
@@ -112,9 +126,7 @@ export class ActionDispatcher {
         const index = this._cycles.advance(id, action, length);
         const workArea = this._mover.workArea(win);
         const rect = rectForAction(workArea, action, index, this._gaps());
-        const record = this._ensureRecord(win, frame);
-        record.lastApplied = rect;
-        this._mover.apply(win, rect);
+        this._applyTracked(win, this._ensureRecord(win, frame), rect);
     }
 
     _maximize(win, id, frame) {
@@ -132,9 +144,7 @@ export class ActionDispatcher {
         this._cycles.advance(id, Action.CENTER, 1);
         const workArea = this._mover.workArea(win);
         const rect = centerRect(workArea, frame, this._gaps());
-        const record = this._ensureRecord(win, frame);
-        record.lastApplied = rect;
-        this._mover.apply(win, rect, { resize: false });
+        this._applyTracked(win, this._ensureRecord(win, frame), rect, false);
     }
 
     _restore(win, id, record) {
@@ -158,7 +168,8 @@ export class ActionDispatcher {
         const rect = mapRectToWorkArea(frame, fromArea, toArea);
         const record = this._records.get(win);
         if (record)
-            record.lastApplied = rect; // keep `original`; update expectation
-        this._mover.apply(win, rect);
+            this._applyTracked(win, record, rect); // keeps `original`
+        else
+            this._mover.apply(win, rect);
     }
 }

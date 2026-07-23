@@ -92,33 +92,37 @@ export class WindowMover {
 
     // Apply a target rect (spec 3.7/4.3): unmaximize/untile first and defer
     // one main-loop iteration when we did (unmaximize is async — an
-    // immediate resize races it). Then move_resize_frame + deferred
-    // min-size read-back: if the app clamped our size, re-center the
-    // actual size inside the target rect.
-    apply(window, rect, { resize = true } = {}) {
+    // immediate resize races it). Then placement + deferred read-back: if
+    // the frame's final size differs from the target (app min-size clamp,
+    // or a move-only placement computed while the window was maximized),
+    // re-center the actual size inside the target rect. `onSettled`
+    // reports the final intended rect so the dispatcher's expectation
+    // tracking (manual-change detection) stays accurate.
+    apply(window, rect, { resize = true, onSettled = null } = {}) {
         if (this.isMaximized(window)) {
             this.unmaximize(window);
-            this._defer(() => this._place(window, rect, resize));
+            this._defer(() => this._place(window, rect, resize, onSettled));
         } else {
-            this._place(window, rect, resize);
+            this._place(window, rect, resize, onSettled);
         }
     }
 
-    _place(window, rect, resize) {
-        if (resize && window.allows_resize()) {
+    _place(window, rect, resize, onSettled) {
+        if (resize && window.allows_resize())
             window.move_resize_frame(true, rect.x, rect.y, rect.width, rect.height);
-            // Read-back must also be deferred: on Wayland the frame rect
-            // only updates once the client acks the configure.
-            this._defer(() => {
-                const frame = window.get_frame_rect();
-                if (frame.width === rect.width && frame.height === rect.height)
-                    return;
-                const centered = recenterWithin(rect, frame.width, frame.height);
-                window.move_frame(true, centered.x, centered.y);
-            }, 50);
-        } else {
+        else
             window.move_frame(true, rect.x, rect.y);
-        }
+        // Read-back must be deferred: on Wayland the frame rect only
+        // updates once the client acks the configure.
+        this._defer(() => {
+            const frame = window.get_frame_rect();
+            let finalRect = rect;
+            if (frame.width !== rect.width || frame.height !== rect.height) {
+                finalRect = recenterWithin(rect, frame.width, frame.height);
+                window.move_frame(true, finalRect.x, finalRect.y);
+            }
+            onSettled?.(finalRect);
+        }, 50);
     }
 
     _defer(callback, ms = 0) {
