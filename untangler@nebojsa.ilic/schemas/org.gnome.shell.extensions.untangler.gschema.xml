@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="untangler">
+  <schema id="org.gnome.shell.extensions.untangler" path="/org/gnome/shell/extensions/untangler/">
+
+    <!-- Keyboard actions (spec 3.1). Type 'as' as required by Main.wm.addKeybinding. -->
+    <key name="snap-left-half" type="as"><default><![CDATA[['<Super><Alt>Left']]]></default><summary>Left half (cycles 1/2, 2/3, 1/3)</summary></key>
+    <key name="snap-right-half" type="as"><default><![CDATA[['<Super><Alt>Right']]]></default><summary>Right half (cycles 1/2, 2/3, 1/3)</summary></key>
+    <key name="snap-top-half" type="as"><default><![CDATA[['<Super><Alt>Up']]]></default><summary>Top half (cycles 1/2, 2/3, 1/3)</summary></key>
+    <key name="snap-bottom-half" type="as"><default><![CDATA[['<Super><Alt>Down']]]></default><summary>Bottom half (cycles 1/2, 2/3, 1/3)</summary></key>
+    <key name="snap-top-left-quarter" type="as"><default><![CDATA[['<Super><Alt>u']]]></default><summary>Top-left quarter (cycles 1/4, 1/6)</summary></key>
+    <key name="snap-top-right-quarter" type="as"><default><![CDATA[['<Super><Alt>i']]]></default><summary>Top-right quarter (cycles 1/4, 1/6)</summary></key>
+    <key name="snap-bottom-left-quarter" type="as"><default><![CDATA[['<Super><Alt>j']]]></default><summary>Bottom-left quarter (cycles 1/4, 1/6)</summary></key>
+    <key name="snap-bottom-right-quarter" type="as"><default><![CDATA[['<Super><Alt>k']]]></default><summary>Bottom-right quarter (cycles 1/4, 1/6)</summary></key>
+    <key name="snap-first-third" type="as"><default><![CDATA[['<Super><Alt>d']]]></default><summary>First (left) third</summary></key>
+    <key name="snap-center-third" type="as"><default><![CDATA[['<Super><Alt>f']]]></default><summary>Center third</summary></key>
+    <key name="snap-last-third" type="as"><default><![CDATA[['<Super><Alt>g']]]></default><summary>Last (right) third</summary></key>
+    <key name="snap-maximize" type="as"><default><![CDATA[['<Super><Alt>Return']]]></default><summary>Maximize</summary></key>
+    <key name="snap-almost-maximize" type="as"><default><![CDATA[['<Super><Alt>m']]]></default><summary>Almost maximize (90% centered)</summary></key>
+    <key name="snap-center" type="as"><default><![CDATA[['<Super><Alt>c']]]></default><summary>Center window without resizing</summary></key>
+    <key name="snap-restore" type="as"><default><![CDATA[['<Super><Alt>BackSpace']]]></default><summary>Restore pre-snap size and position</summary></key>
+    <key name="snap-next-display" type="as"><default><![CDATA[['<Super><Alt>Page_Down']]]></default><summary>Move to next display</summary></key>
+    <key name="snap-prev-display" type="as"><default><![CDATA[['<Super><Alt>Page_Up']]]></default><summary>Move to previous display</summary></key>
+
+    <!-- Behavior (spec 3.5, 4.5) -->
+    <key name="outer-gap" type="i"><default>0</default><range min="0" max="128"/><summary>Gap between windows and work-area edge (px)</summary></key>
+    <key name="inner-gap" type="i"><default>0</default><range min="0" max="128"/><summary>Gap between adjacent snapped windows (px)</summary></key>
+    <key name="cycle-sizes-enabled" type="b"><default>true</default><summary>Repeated presses cycle through size variants</summary></key>
+
+    <!-- Drag snapping (spec 3.6, 4.5) -->
+    <key name="drag-snap-mode" type="s">
+      <choices><choice value="off"/><choice value="replace"/><choice value="modifier"/></choices>
+      <default>'replace'</default>
+      <summary>Drag snapping mode</summary>
+    </key>
+    <key name="drag-snap-modifier" type="s">
+      <choices><choice value="ctrl"/><choice value="alt"/><choice value="shift"/><choice value="super"/></choices>
+      <default>'ctrl'</default>
+      <summary>Modifier for size variants (activation key in modifier-only mode)</summary>
+    </key>
+    <key name="edge-band-px" type="i"><default>16</default><range min="4" max="64"/><summary>Edge zone trigger depth (px)</summary></key>
+    <key name="show-preview" type="b"><default>true</default><summary>Show translucent preview of the target zone while dragging</summary></key>
+    <key name="saved-edge-tiling" type="b"><default>true</default><summary>User's org.gnome.mutter edge-tiling value before we suppressed it</summary></key>
+    <key name="edge-tiling-suppressed" type="b"><default>false</default><summary>Whether we are currently suppressing native edge tiling (crash-recovery marker)</summary></key>
+  </schema>
+</schemalist>
