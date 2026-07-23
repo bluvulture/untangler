@@ -185,7 +185,7 @@ export class DragSnapManager {
         }
 
         const key = zone && workArea
-            ? `${zone.action}:${zone.cycleIndex}:${workArea.x}:${workArea.y}`
+            ? `${zone.action}:${zone.cycleIndex}:${workArea.x}:${workArea.y}:${workArea.width}:${workArea.height}`
             : null;
         if (key === this._zoneKey)
             return;

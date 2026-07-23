@@ -6,9 +6,12 @@ import Meta from 'gi://Meta';
 
 import { recenterWithin } from './geometry.js';
 
-// GNOME 48 removed Meta.MaximizeFlags and the flags argument to
-// maximize()/unmaximize(). Feature-detect once; this is the only
-// version-dependent spot in the codebase.
+// GNOME 49 removes Meta.MaximizeFlags and the flags argument to
+// maximize()/unmaximize() (per the GNOME Shell 49 porting guide). On the
+// supported 46–48 range the flags branch is the live path; the no-flags
+// branch below is dormant future-proofing for an eventual 49 port.
+// Feature-detect once; this is the only version-dependent spot in the
+// codebase.
 let MAXIMIZE_BOTH = null;
 try {
     MAXIMIZE_BOTH = Meta.MaximizeFlags.BOTH;
@@ -19,6 +22,10 @@ try {
 export class WindowMover {
     constructor() {
         this._pendingSources = new Set();
+        // Pending deferred ops per window (placement + read-back), so a new
+        // placement cancels superseded ones instead of racing them
+        // (decision 10).
+        this._windowSources = new WeakMap();
     }
 
     destroy() {
@@ -77,6 +84,10 @@ export class WindowMover {
     }
 
     maximize(window) {
+        // A pending read-back from an earlier snap must not fire after
+        // maximizing — it would move the window with stale coordinates and
+        // overwrite the dispatcher's `lastApplied = null` marker.
+        this._cancelPendingFor(window);
         if (MAXIMIZE_BOTH !== null)
             window.maximize(MAXIMIZE_BOTH);
         else
@@ -99,9 +110,13 @@ export class WindowMover {
     // reports the final intended rect so the dispatcher's expectation
     // tracking (manual-change detection) stays accurate.
     apply(window, rect, { resize = true, onSettled = null } = {}) {
+        // Cancel superseded deferred work for this window first: a rapid
+        // second placement must not let the first one's deferred placement
+        // or read-back fire against the new geometry (decision 10).
+        this._cancelPendingFor(window);
         if (this.isMaximized(window)) {
             this.unmaximize(window);
-            this._defer(() => this._place(window, rect, resize, onSettled));
+            this._deferForWindow(window, () => this._place(window, rect, resize, onSettled));
         } else {
             this._place(window, rect, resize, onSettled);
         }
@@ -114,21 +129,44 @@ export class WindowMover {
             window.move_frame(true, rect.x, rect.y);
         // Read-back must be deferred: on Wayland the frame rect only
         // updates once the client acks the configure.
-        this._defer(() => {
-            const frame = window.get_frame_rect();
-            let finalRect = rect;
-            if (frame.width !== rect.width || frame.height !== rect.height) {
-                finalRect = recenterWithin(rect, frame.width, frame.height);
-                window.move_frame(true, finalRect.x, finalRect.y);
+        this._deferForWindow(window, () => {
+            try {
+                const frame = window.get_frame_rect();
+                let finalRect = rect;
+                if (frame.width !== rect.width || frame.height !== rect.height) {
+                    finalRect = recenterWithin(rect, frame.width, frame.height);
+                    window.move_frame(true, finalRect.x, finalRect.y);
+                }
+                onSettled?.(finalRect);
+            } catch {
+                // Window closed while the read-back was pending — nothing
+                // to settle; the dispatcher record is WeakMap-keyed to the
+                // dead window and drops out with it.
             }
-            onSettled?.(finalRect);
         }, 50);
     }
 
-    _defer(callback, ms = 0) {
+    _cancelPendingFor(window) {
+        const ids = this._windowSources.get(window);
+        if (!ids)
+            return;
+        for (const id of ids) {
+            GLib.source_remove(id);
+            this._pendingSources.delete(id);
+        }
+        this._windowSources.delete(window);
+    }
+
+    _deferForWindow(window, callback, ms = 0) {
+        let ids = this._windowSources.get(window);
+        if (!ids) {
+            ids = new Set();
+            this._windowSources.set(window, ids);
+        }
         let id;
         const run = () => {
             this._pendingSources.delete(id);
+            ids.delete(id);
             callback();
             return GLib.SOURCE_REMOVE;
         };
@@ -136,5 +174,6 @@ export class WindowMover {
             ? GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, run)
             : GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, run);
         this._pendingSources.add(id);
+        ids.add(id);
     }
 }

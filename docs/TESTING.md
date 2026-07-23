@@ -22,6 +22,7 @@ or a real session. Host verified: GNOME Shell 46 / Ubuntu 24.04.
 - [ ] Bottom edge thirds; top-center → maximize; 24 px corners → quarters
 - [ ] Ctrl (default) held: halves become two-thirds, quarters become sixths
 - [ ] Modifier-only mode: zones appear only with modifier held; native tiling still works without it
+- [ ] Modifier-only mode: hold the modifier and drop in a zone that overlaps native tiling (left edge, middle band) — check for double-snap/flicker races with GNOME's native tiling and that Restore returns to the true pre-drag frame
 - [ ] Esc during drag: preview hides, no snap
 - [ ] Drop outside any zone: plain move, no snap
 - [ ] Drag across monitor boundary: preview jumps to the other monitor's work area
