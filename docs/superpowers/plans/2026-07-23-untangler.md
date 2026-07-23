@@ -66,12 +66,12 @@ Reviewers: these are deliberate; do not flag them as bugs.
 1. **Lazy manual-move detection** (spec 3.2/3.3 suggests `position-changed`/`size-changed` signals): instead of per-window signal connections, the dispatcher stores the last rect it applied and compares against the current frame rect *at the next action press*. If they differ (>2 px tolerance), the cycle resets and stored restore geometry is invalidated — same observable behavior, zero persistent per-window signals to leak (EGO-friendlier).
 2. **Esc-cancel heuristic** (spec 3.6): Mutter's `grab-op-end` doesn't report cancellation. We record the frame rect at `grab-op-begin`; if at `grab-op-end` the frame is back at that exact rect (±1 px), we treat the drag as cancelled and do not snap.
 3. **Restore geometry recorded on drag-snap** (spec 3.6): at drop time the window has already been dragged, so the "original" we record is the drop-time frame (pre-drag *size*, position under the pointer). Matches GNOME's native untile behavior.
-4. **`Meta.MaximizeFlags` feature detection**: GNOME 48 removed `Meta.MaximizeFlags` and the flag arguments to `maximize()`/`unmaximize()`. `mover.js` feature-detects via try/catch once and calls the right arity. This is the only place in the codebase that handles it.
+4. **`Meta.MaximizeFlags` feature detection**: GNOME **49** (not 48 — corrected by the final review against the GNOME Shell 49 porting guide) removes `Meta.MaximizeFlags` and the flag arguments to `maximize()`/`unmaximize()`. On the supported 46–48 range the flags branch is the live path; the no-flags branch is dormant future-proofing for an eventual 49 port (which will need its own audit — `shell-version` correctly excludes 49 today). `mover.js` feature-detects via try/catch once and is the only place that handles this.
 5. **Variant modifier also applies to corner hot zones** (spec table only mentions edge bands): corners produce the same quarter actions as the edge top/bottom bands, so the modifier consistently upgrades them to sixths too.
 6. **Corner hot-zone size fixed at 24 px** — the spec's schema excerpt (4.5) is normative and has no corner-size key.
 7. **"Restore on drag" toggle** listed in spec 4.6 has no defined behavior anywhere in the spec — omitted (YAGNI).
 8. **`edge-tiling-suppressed` extra schema key** (not in spec excerpt): needed to make crash-recovery of the user's `edge-tiling` value robust (spec §7 risk table demands this) — without it, re-suppressing after a crash would overwrite the saved user value with our own `false`.
-9. **Settle-callback expectation tracking** (post-review fix, Task 4): `WindowMover.apply` reports the final placed rect via `onSettled`; the dispatcher records it as the new `lastApplied` and suppresses manual-change detection while a placement is settling. Without this, min-size read-back re-centering (spec 3.7) would be mistaken for a manual move — resetting the cycle and discarding restore geometry — and Center on a maximized window would land at the work-area origin instead of centered (the deferred read-back now covers move-only placements too, which is what fixes Center).
+9. **Settle-callback expectation tracking** (post-review fix, Task 4; hardened by decision 10): `WindowMover.apply` reports the final placed rect via `onSettled`; the dispatcher records it as the new `lastApplied` and suppresses manual-change detection while a placement is settling. Without this, min-size read-back re-centering (spec 3.7) would be mistaken for a manual move — resetting the cycle and discarding restore geometry — and Center on a maximized window would land at the work-area origin instead of centered (the deferred read-back now covers move-only placements too, which is what fixes Center).
 
 ---
 
@@ -2148,5 +2148,157 @@ Unit tests fully cover geometry, cycling, and zone resolution. Everything touchi
 | 4.6 prefs | 6 |
 | 4.7 version resilience | 4 (mover feature-detect), purity rule throughout |
 | §5 M7 / §6 testing | 7 |
+
+---
+
+## Post-Review Fixes (final whole-branch review, applied after Task 7)
+
+Decision 10 — **Superseded-placement cancellation**: `WindowMover` tracks pending deferred ops per window and cancels them when a new placement (or `maximize()`) starts for that window. Without this, a second action within the 50 ms settle window lets the first read-back fire against the new geometry — moving the window with stale coordinates and poisoning `lastApplied` — and the snap→maximize / snap→restore interleavings silently corrupt restore geometry. The read-back body is also try/catch-guarded against the window closing mid-settle.
+
+**Fix commit contents (one commit, `fix: cancel superseded placements; guard dead windows; zone key dims; 17x3 sync test`):**
+
+1. `untangler@nebojsa.ilic/mover.js` — replace the constructor, `apply`, `_place`, and `_defer` (which is removed) with:
+
+```js
+    constructor() {
+        this._pendingSources = new Set();
+        // Pending deferred ops per window (placement + read-back), so a new
+        // placement cancels superseded ones instead of racing them
+        // (decision 10).
+        this._windowSources = new WeakMap();
+    }
+```
+
+`destroy()` is unchanged (the global `_pendingSources` sweep covers every id).
+
+```js
+    maximize(window) {
+        // A pending read-back from an earlier snap must not fire after
+        // maximizing — it would move the window with stale coordinates and
+        // overwrite the dispatcher's `lastApplied = null` marker.
+        this._cancelPendingFor(window);
+        if (MAXIMIZE_BOTH !== null)
+            window.maximize(MAXIMIZE_BOTH);
+        else
+            window.maximize();
+    }
+```
+
+```js
+    apply(window, rect, { resize = true, onSettled = null } = {}) {
+        // Cancel superseded deferred work for this window first: a rapid
+        // second placement must not let the first one's deferred placement
+        // or read-back fire against the new geometry (decision 10).
+        this._cancelPendingFor(window);
+        if (this.isMaximized(window)) {
+            this.unmaximize(window);
+            this._deferForWindow(window, () => this._place(window, rect, resize, onSettled));
+        } else {
+            this._place(window, rect, resize, onSettled);
+        }
+    }
+
+    _place(window, rect, resize, onSettled) {
+        if (resize && window.allows_resize())
+            window.move_resize_frame(true, rect.x, rect.y, rect.width, rect.height);
+        else
+            window.move_frame(true, rect.x, rect.y);
+        // Read-back must be deferred: on Wayland the frame rect only
+        // updates once the client acks the configure.
+        this._deferForWindow(window, () => {
+            try {
+                const frame = window.get_frame_rect();
+                let finalRect = rect;
+                if (frame.width !== rect.width || frame.height !== rect.height) {
+                    finalRect = recenterWithin(rect, frame.width, frame.height);
+                    window.move_frame(true, finalRect.x, finalRect.y);
+                }
+                onSettled?.(finalRect);
+            } catch {
+                // Window closed while the read-back was pending — nothing
+                // to settle; the dispatcher record is WeakMap-keyed to the
+                // dead window and drops out with it.
+            }
+        }, 50);
+    }
+
+    _cancelPendingFor(window) {
+        const ids = this._windowSources.get(window);
+        if (!ids)
+            return;
+        for (const id of ids) {
+            GLib.source_remove(id);
+            this._pendingSources.delete(id);
+        }
+        this._windowSources.delete(window);
+    }
+
+    _deferForWindow(window, callback, ms = 0) {
+        let ids = this._windowSources.get(window);
+        if (!ids) {
+            ids = new Set();
+            this._windowSources.set(window, ids);
+        }
+        let id;
+        const run = () => {
+            this._pendingSources.delete(id);
+            ids.delete(id);
+            callback();
+            return GLib.SOURCE_REMOVE;
+        };
+        id = ms === 0
+            ? GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, run)
+            : GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, run);
+        this._pendingSources.add(id);
+        ids.add(id);
+    }
+```
+
+Also update the header comment above the `MAXIMIZE_BOTH` block: GNOME **49** (not 48) removes `Meta.MaximizeFlags` — the detection is dormant future-proofing on 46–48.
+
+2. `untangler@nebojsa.ilic/dragsnap.js` — the zone key gains the work-area dimensions (stale-work-area hole when a dock toggles mid-drag without moving the origin):
+
+```js
+        const key = zone && workArea
+            ? `${zone.action}:${zone.cycleIndex}:${workArea.x}:${workArea.y}:${workArea.width}:${workArea.height}`
+            : null;
+```
+
+3. `docs/TESTING.md` — add under "## Drag snapping":
+
+```markdown
+- [ ] Modifier-only mode: hold the modifier and drop in a zone that overlaps native tiling (left edge, middle band) — check for double-snap/flicker races with GNOME's native tiling and that Restore returns to the true pre-drag frame
+```
+
+4. Create `tests/sync.test.js` (17×3 regression guard — schema × KEYBINDINGS × SHORTCUT_ROWS):
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const EXT_DIR = new URL('../untangler@nebojsa.ilic/', import.meta.url);
+
+function read(name) {
+    return readFileSync(new URL(name, EXT_DIR), 'utf8');
+}
+
+function matches(text, re) {
+    return [...text.matchAll(re)].map(m => m[1]);
+}
+
+test('schema, KEYBINDINGS and SHORTCUT_ROWS list the same 17 snap keys in the same order', () => {
+    const schema = matches(
+        read('schemas/org.gnome.shell.extensions.untangler.gschema.xml'),
+        /<key name="(snap-[a-z-]+)" type="as">/g);
+    const keybindings = matches(read('keybindings.js'), /'(snap-[a-z-]+)':/g);
+    const prefs = matches(read('prefs.js'), /\['(snap-[a-z-]+)', '/g);
+    assert.equal(schema.length, 17);
+    assert.deepEqual(keybindings, schema);
+    assert.deepEqual(prefs, schema);
+});
+```
+
+Verification: `npm run check && npm test && echo ALL-OK` → **37** tests, ALL-OK.
 
 
