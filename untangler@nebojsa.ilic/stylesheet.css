@@ -1,0 +1,7 @@
+/* Drag snap zone preview (spec 3.6). Translucent so it reads on both light
+   and dark shell themes. */
+.untangler-zone-preview {
+  background-color: rgba(53, 132, 228, 0.25);
+  border: 2px solid rgba(53, 132, 228, 0.7);
+  border-radius: 12px;
+}
