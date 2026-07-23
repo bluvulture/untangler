@@ -141,3 +141,90 @@ function almostMaximize(workArea, gaps) {
         height,
     };
 }
+
+// --- Drag snap zones (spec 3.6) ---
+// Pure: pointer position + work area → { action, cycleIndex } | null.
+// `variant` = the two-thirds/thirds modifier is held; it bumps halves and
+// quarters to cycle step 1 (two-thirds / sixth). Precedence: corners, then
+// top edge, then left/right edges, then bottom edge.
+export function resolveZone(pointerX, pointerY, workArea, options = {}) {
+    const { bandPx = 16, cornerPx = 24, variant = false } = options;
+    const wa = workArea;
+    // Clamp so pointers over panels/struts (outside the work area) still
+    // hit the nearest edge band.
+    const px = clamp(pointerX, wa.x, wa.x + wa.width - 1);
+    const py = clamp(pointerY, wa.y, wa.y + wa.height - 1);
+    const variantIndex = variant ? 1 : 0;
+
+    const inLeftCorner = px < wa.x + cornerPx;
+    const inRightCorner = px >= wa.x + wa.width - cornerPx;
+    const inTopCorner = py < wa.y + cornerPx;
+    const inBottomCorner = py >= wa.y + wa.height - cornerPx;
+    if (inTopCorner && inLeftCorner)
+        return { action: Action.TOP_LEFT_QUARTER, cycleIndex: variantIndex };
+    if (inTopCorner && inRightCorner)
+        return { action: Action.TOP_RIGHT_QUARTER, cycleIndex: variantIndex };
+    if (inBottomCorner && inLeftCorner)
+        return { action: Action.BOTTOM_LEFT_QUARTER, cycleIndex: variantIndex };
+    if (inBottomCorner && inRightCorner)
+        return { action: Action.BOTTOM_RIGHT_QUARTER, cycleIndex: variantIndex };
+
+    const nearLeft = px < wa.x + bandPx;
+    const nearRight = px >= wa.x + wa.width - bandPx;
+    const nearTop = py < wa.y + bandPx;
+    const nearBottom = py >= wa.y + wa.height - bandPx;
+
+    if (nearTop) {
+        // Top edge, centre 50 % → maximize (native-compatible).
+        if (px >= wa.x + wa.width * 0.25 && px < wa.x + wa.width * 0.75)
+            return { action: Action.MAXIMIZE, cycleIndex: 0 };
+        return null;
+    }
+
+    if (nearLeft || nearRight) {
+        const heightFrac = (py - wa.y) / wa.height;
+        if (heightFrac < 0.25) {
+            return {
+                action: nearLeft ? Action.TOP_LEFT_QUARTER : Action.TOP_RIGHT_QUARTER,
+                cycleIndex: variantIndex,
+            };
+        }
+        if (heightFrac >= 0.75) {
+            return {
+                action: nearLeft ? Action.BOTTOM_LEFT_QUARTER : Action.BOTTOM_RIGHT_QUARTER,
+                cycleIndex: variantIndex,
+            };
+        }
+        return {
+            action: nearLeft ? Action.LEFT_HALF : Action.RIGHT_HALF,
+            cycleIndex: variantIndex,
+        };
+    }
+
+    if (nearBottom) {
+        const widthFrac = (px - wa.x) / wa.width;
+        if (widthFrac < 1 / 3)
+            return { action: Action.FIRST_THIRD, cycleIndex: 0 };
+        if (widthFrac < 2 / 3)
+            return { action: Action.CENTER_THIRD, cycleIndex: 0 };
+        return { action: Action.LAST_THIRD, cycleIndex: 0 };
+    }
+
+    return null;
+}
+
+// The rect a zone previews and applies. Maximize is performed via Meta's
+// own maximize (spec 3.1), so its preview is simply the whole work area.
+export function zoneRect(zone, workArea, gaps = NO_GAPS) {
+    if (zone.action === Action.MAXIMIZE) {
+        return {
+            x: workArea.x, y: workArea.y,
+            width: workArea.width, height: workArea.height,
+        };
+    }
+    return rectForAction(workArea, zone.action, zone.cycleIndex, gaps);
+}
+
+function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+}
