@@ -71,6 +71,7 @@ Reviewers: these are deliberate; do not flag them as bugs.
 6. **Corner hot-zone size fixed at 24 px** — the spec's schema excerpt (4.5) is normative and has no corner-size key.
 7. **"Restore on drag" toggle** listed in spec 4.6 has no defined behavior anywhere in the spec — omitted (YAGNI).
 8. **`edge-tiling-suppressed` extra schema key** (not in spec excerpt): needed to make crash-recovery of the user's `edge-tiling` value robust (spec §7 risk table demands this) — without it, re-suppressing after a crash would overwrite the saved user value with our own `false`.
+9. **Settle-callback expectation tracking** (post-review fix, Task 4): `WindowMover.apply` reports the final placed rect via `onSettled`; the dispatcher records it as the new `lastApplied` and suppresses manual-change detection while a placement is settling. Without this, min-size read-back re-centering (spec 3.7) would be mistaken for a manual move — resetting the cycle and discarding restore geometry — and Center on a maximized window would land at the work-area origin instead of centered (the deferred read-back now covers move-only placements too, which is what fixes Center).
 
 ---
 
@@ -830,7 +831,7 @@ This task produces an installable extension where all 17 keyboard actions work. 
 **Interfaces:**
 - Consumes: everything Task 1–3 exports.
 - Produces:
-  - `WindowMover` (mover.js): `focusedWindow()`, `windowId(win)`, `canResize(win)`, `canMove(win)`, `frameRect(win)`, `workArea(win)`, `monitorCount()`, `currentMonitor(win)`, `workAreaForMonitor(win, index)`, `maximize(win)`, `unmaximize(win)`, `isMaximized(win)`, `apply(win, rect, {resize = true})`, `destroy()`.
+  - `WindowMover` (mover.js): `focusedWindow()`, `windowId(win)`, `canResize(win)`, `canMove(win)`, `frameRect(win)`, `workArea(win)`, `monitorCount()`, `currentMonitor(win)`, `workAreaForMonitor(win, index)`, `maximize(win)`, `unmaximize(win)`, `isMaximized(win)`, `apply(win, rect, {resize = true, onSettled = null})`, `destroy()`.
   - `ActionDispatcher` (actions.js): `run(action)`, `applyZone(win, zone, workArea)` (used by Task 5), `destroy()`.
   - `KeybindingManager` (keybindings.js): `enable()`, `disable()`; exports `KEYBINDINGS` map (GSettings key → Action) reused by prefs (Task 6).
   - `extension.js`: default-exported `UntanglerExtension extends Extension`.
@@ -1003,33 +1004,37 @@ export class WindowMover {
 
     // Apply a target rect (spec 3.7/4.3): unmaximize/untile first and defer
     // one main-loop iteration when we did (unmaximize is async — an
-    // immediate resize races it). Then move_resize_frame + deferred
-    // min-size read-back: if the app clamped our size, re-center the
-    // actual size inside the target rect.
-    apply(window, rect, { resize = true } = {}) {
+    // immediate resize races it). Then placement + deferred read-back: if
+    // the frame's final size differs from the target (app min-size clamp,
+    // or a move-only placement computed while the window was maximized),
+    // re-center the actual size inside the target rect. `onSettled`
+    // reports the final intended rect so the dispatcher's expectation
+    // tracking (manual-change detection) stays accurate.
+    apply(window, rect, { resize = true, onSettled = null } = {}) {
         if (this.isMaximized(window)) {
             this.unmaximize(window);
-            this._defer(() => this._place(window, rect, resize));
+            this._defer(() => this._place(window, rect, resize, onSettled));
         } else {
-            this._place(window, rect, resize);
+            this._place(window, rect, resize, onSettled);
         }
     }
 
-    _place(window, rect, resize) {
-        if (resize && window.allows_resize()) {
+    _place(window, rect, resize, onSettled) {
+        if (resize && window.allows_resize())
             window.move_resize_frame(true, rect.x, rect.y, rect.width, rect.height);
-            // Read-back must also be deferred: on Wayland the frame rect
-            // only updates once the client acks the configure.
-            this._defer(() => {
-                const frame = window.get_frame_rect();
-                if (frame.width === rect.width && frame.height === rect.height)
-                    return;
-                const centered = recenterWithin(rect, frame.width, frame.height);
-                window.move_frame(true, centered.x, centered.y);
-            }, 50);
-        } else {
+        else
             window.move_frame(true, rect.x, rect.y);
-        }
+        // Read-back must be deferred: on Wayland the frame rect only
+        // updates once the client acks the configure.
+        this._defer(() => {
+            const frame = window.get_frame_rect();
+            let finalRect = rect;
+            if (frame.width !== rect.width || frame.height !== rect.height) {
+                finalRect = recenterWithin(rect, frame.width, frame.height);
+                window.move_frame(true, finalRect.x, finalRect.y);
+            }
+            onSettled?.(finalRect);
+        }, 50);
     }
 
     _defer(callback, ms = 0) {
@@ -1089,7 +1094,7 @@ export class ActionDispatcher {
         // Lazy manual-change detection: a manual move/resize since our
         // last snap resets the cycle and invalidates restore geometry.
         let record = this._records.get(win);
-        if (record?.lastApplied &&
+        if (record?.lastApplied && !record.settling &&
             !rectsEqual(frame, record.lastApplied, MANUAL_CHANGE_TOLERANCE)) {
             this._records.delete(win);
             this._cycles.reset(id);
@@ -1134,9 +1139,7 @@ export class ActionDispatcher {
         if (!this._mover.canResize(win))
             return;
         const rect = zoneRect(zone, workArea, this._gaps());
-        const record = this._ensureRecord(win, frame);
-        record.lastApplied = rect;
-        this._mover.apply(win, rect);
+        this._applyTracked(win, this._ensureRecord(win, frame), rect);
     }
 
     _gaps() {
@@ -1149,10 +1152,26 @@ export class ActionDispatcher {
     _ensureRecord(win, frame) {
         let record = this._records.get(win);
         if (!record) {
-            record = { original: { ...frame }, lastApplied: null };
+            record = { original: { ...frame }, lastApplied: null, settling: false };
             this._records.set(win, record);
         }
         return record;
+    }
+
+    // Route every tracked placement through the mover's settle callback:
+    // the final rect can legitimately differ from the requested one
+    // (min-size clamp → read-back re-centering), and treating that as a
+    // manual move would wrongly reset the cycle and drop restore geometry.
+    _applyTracked(win, record, rect, resize = true) {
+        record.settling = true;
+        record.lastApplied = rect;
+        this._mover.apply(win, rect, {
+            resize,
+            onSettled: finalRect => {
+                record.lastApplied = finalRect;
+                record.settling = false;
+            },
+        });
     }
 
     _snap(win, id, frame, action) {
@@ -1164,9 +1183,7 @@ export class ActionDispatcher {
         const index = this._cycles.advance(id, action, length);
         const workArea = this._mover.workArea(win);
         const rect = rectForAction(workArea, action, index, this._gaps());
-        const record = this._ensureRecord(win, frame);
-        record.lastApplied = rect;
-        this._mover.apply(win, rect);
+        this._applyTracked(win, this._ensureRecord(win, frame), rect);
     }
 
     _maximize(win, id, frame) {
@@ -1184,9 +1201,7 @@ export class ActionDispatcher {
         this._cycles.advance(id, Action.CENTER, 1);
         const workArea = this._mover.workArea(win);
         const rect = centerRect(workArea, frame, this._gaps());
-        const record = this._ensureRecord(win, frame);
-        record.lastApplied = rect;
-        this._mover.apply(win, rect, { resize: false });
+        this._applyTracked(win, this._ensureRecord(win, frame), rect, false);
     }
 
     _restore(win, id, record) {
@@ -1210,8 +1225,9 @@ export class ActionDispatcher {
         const rect = mapRectToWorkArea(frame, fromArea, toArea);
         const record = this._records.get(win);
         if (record)
-            record.lastApplied = rect; // keep `original`; update expectation
-        this._mover.apply(win, rect);
+            this._applyTracked(win, record, rect); // keeps `original`
+        else
+            this._mover.apply(win, rect);
     }
 }
 ```
