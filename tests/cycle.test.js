@@ -10,7 +10,7 @@ test('repeated same action advances and wraps', () => {
   assert.equal(t.advance(w1, 'left-half', 3), 0);
   assert.equal(t.advance(w1, 'left-half', 3), 1);
   assert.equal(t.advance(w1, 'left-half', 3), 2);
-  assert.equal(t.advance(w1, 'left-half', 3), 0); // wraps (spec 3.2)
+  assert.equal(t.advance(w1, 'left-half', 3), 0); // wraps (docs/history/2026-07-original-spec.md §3.2)
 });
 
 test('different action resets the cycle', () => {

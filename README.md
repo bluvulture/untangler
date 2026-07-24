@@ -75,9 +75,10 @@ untangler@bluvulture`.
 | Restore | Super+Alt+BackSpace | — |
 | Next / previous display | Super+Alt+PageDown / PageUp | — |
 
-All rebindable in Preferences; rows warn when a shortcut collides with a
-GNOME system shortcut or another Untangler action (conflicts with *other
-extensions* cannot be detected — best effort only).
+All rebindable in Preferences; rows warn when a shortcut collides with
+common GNOME system shortcuts (window-manager and Mutter keybindings) or
+another Untangler action (conflicts with *other extensions* cannot be
+detected — best effort only).
 
 ## Settings reference
 

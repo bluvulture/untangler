@@ -21,7 +21,7 @@ test('pickPairSide: left of center → left, center and right → right', () => 
   assert.equal(pickPairSide(2300, far), 'right');
 });
 
-test('pairRects matches the rectForAction table (spec §3)', () => {
+test('pairRects matches the rectForAction table', () => {
   for (const gaps of [NO_GAPS, GAPS]) {
     assert.deepEqual(pairRects(WA, 'left', false, gaps), {
       a: rectForAction(WA, Action.LEFT_HALF, 0, gaps),

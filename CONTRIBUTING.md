@@ -50,7 +50,7 @@ marked with `N_`, a no-op wrapper, rather than translated inline — pass both
 keywords or those 17 strings will be silently skipped):
 
 ```sh
-xgettext --language=JavaScript --keyword=_ --keyword=N_ untangler@bluvulture/prefs.js
+xgettext --language=JavaScript --keyword=_ --keyword=N_ --from-code=UTF-8 untangler@bluvulture/prefs.js
 ```
 
 ## Maintainership

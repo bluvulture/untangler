@@ -53,7 +53,7 @@ function buildShortcutsPage(settings) {
         icon_name: 'input-keyboard-symbolic',
     });
     const group = new Adw.PreferencesGroup({
-        description: _('Click a row, then press the new shortcut. BackSpace clears, Esc cancels.'),
+        description: _('Click a row, then press the new shortcut. BackSpace clears, Esc cancels. Conflicts with other extensions cannot be detected.'),
     });
     const syncs = [];
     for (const [key, label] of SHORTCUT_ROWS) {

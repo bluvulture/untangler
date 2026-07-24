@@ -16,7 +16,7 @@ function eq(actual, expected, msg) {
   assert.deepEqual(actual, expected, msg);
 }
 
-// --- Cycle lengths (spec 3.1) ---
+// --- Cycle lengths (docs/history/2026-07-original-spec.md §3.1) ---
 test('cycleLength: halves cycle 3, quarters 2, rest 1', () => {
   assert.equal(cycleLength(Action.LEFT_HALF), 3);
   assert.equal(cycleLength(Action.RIGHT_HALF), 3);
@@ -29,7 +29,7 @@ test('cycleLength: halves cycle 3, quarters 2, rest 1', () => {
   assert.equal(cycleLength(Action.MAXIMIZE), 1);
 });
 
-// --- Halves: 1/2 → 2/3 → 1/3 (spec 3.1) ---
+// --- Halves: 1/2 → 2/3 → 1/3 (docs/history/2026-07-original-spec.md §3.1) ---
 test('left half cycle', () => {
   eq(rectForAction(WA, Action.LEFT_HALF, 0), { x: 0, y: 0, width: 600, height: 600 });
   eq(rectForAction(WA, Action.LEFT_HALF, 1), { x: 0, y: 0, width: 800, height: 600 });
@@ -51,7 +51,7 @@ test('top and bottom half cycles', () => {
   eq(rectForAction(WA, Action.BOTTOM_HALF, 2), { x: 0, y: 400, width: 1200, height: 200 });
 });
 
-// --- Quarters: 1/4 → 1/6 (⅓ width × ½ height, spec 3.1) ---
+// --- Quarters: 1/4 → 1/6 (⅓ width × ½ height, docs/history/2026-07-original-spec.md §3.1) ---
 test('quarter cycles', () => {
   eq(rectForAction(WA, Action.TOP_LEFT_QUARTER, 0), { x: 0, y: 0, width: 600, height: 300 });
   eq(rectForAction(WA, Action.TOP_LEFT_QUARTER, 1), { x: 0, y: 0, width: 400, height: 300 });
@@ -63,14 +63,14 @@ test('quarter cycles', () => {
   eq(rectForAction(WA, Action.BOTTOM_RIGHT_QUARTER, 1), { x: 800, y: 300, width: 400, height: 300 });
 });
 
-// --- Thirds (spec 3.1) ---
+// --- Thirds (docs/history/2026-07-original-spec.md §3.1) ---
 test('vertical thirds', () => {
   eq(rectForAction(WA, Action.FIRST_THIRD, 0), { x: 0, y: 0, width: 400, height: 600 });
   eq(rectForAction(WA, Action.CENTER_THIRD, 0), { x: 400, y: 0, width: 400, height: 600 });
   eq(rectForAction(WA, Action.LAST_THIRD, 0), { x: 800, y: 0, width: 400, height: 600 });
 });
 
-// --- Almost maximize: 90 % centered (spec 3.1) ---
+// --- Almost maximize: 90 % centered (docs/history/2026-07-original-spec.md §3.1) ---
 test('almost maximize', () => {
   eq(rectForAction(WA, Action.ALMOST_MAXIMIZE, 0), { x: 60, y: 30, width: 1080, height: 540 });
 });
@@ -87,7 +87,7 @@ test('cycle index wraps modulo table length', () => {
   eq(rectForAction(WA, Action.TOP_LEFT_QUARTER, 2), rectForAction(WA, Action.TOP_LEFT_QUARTER, 0));
 });
 
-// --- Gaps (spec 3.5): outer inset, inner as half-gap on shared edges ---
+// --- Gaps (docs/history/2026-07-original-spec.md §3.5): outer inset, inner as half-gap on shared edges ---
 test('gaps: left/right halves', () => {
   eq(rectForAction(WA, Action.LEFT_HALF, 0, GAPS), { x: 10, y: 10, width: 586, height: 580 });
   eq(rectForAction(WA, Action.RIGHT_HALF, 0, GAPS), { x: 604, y: 10, width: 586, height: 580 });
@@ -125,13 +125,13 @@ test('odd work-area width: halves partition exactly', () => {
   assert.equal(l.x + l.width, r.x);
 });
 
-// --- centerRect (spec 3.1 Center: no resize) ---
+// --- centerRect (docs/history/2026-07-original-spec.md §3.1, Center: no resize) ---
 test('centerRect keeps size and centers', () => {
   eq(centerRect(WA, { x: 5, y: 5, width: 400, height: 300 }), { x: 400, y: 150, width: 400, height: 300 });
   eq(centerRect(WA, { x: 5, y: 5, width: 400, height: 300 }, GAPS), { x: 400, y: 150, width: 400, height: 300 });
 });
 
-// --- mapRectToWorkArea (spec 3.4: same relative rect on target monitor) ---
+// --- mapRectToWorkArea (docs/history/2026-07-original-spec.md §3.4: same relative rect on target monitor) ---
 test('mapRectToWorkArea maps fractions', () => {
   const from = { x: 0, y: 0, width: 1000, height: 500 };
   const to = { x: 1000, y: 0, width: 2000, height: 1000 };
@@ -141,7 +141,7 @@ test('mapRectToWorkArea maps fractions', () => {
     { x: 1500, y: 250, width: 1000, height: 500 });
 });
 
-// --- recenterWithin (spec 3.7 min-size clamp handling) ---
+// --- recenterWithin (docs/history/2026-07-original-spec.md §3.7, min-size clamp handling) ---
 test('recenterWithin centers the clamped size in the target', () => {
   eq(recenterWithin({ x: 0, y: 0, width: 600, height: 600 }, 500, 400),
     { x: 50, y: 100, width: 500, height: 400 });
@@ -187,7 +187,7 @@ test('rectForAction with max gaps on a small work area stays positive', () => {
   }
 });
 
-test('portrait work area: quarters use horizontal thirds (spec 3.1 letter)', () => {
+test('portrait work area: quarters use horizontal thirds (docs/history/2026-07-original-spec.md §3.1, to the letter)', () => {
   const portrait = { x: 0, y: 0, width: 600, height: 1200 };
   assert.deepEqual(rectForAction(portrait, Action.TOP_LEFT_QUARTER, 1),
     { x: 0, y: 0, width: 200, height: 600 });

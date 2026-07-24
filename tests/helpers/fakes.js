@@ -119,7 +119,8 @@ export class FakeMover {
             applied = { width: win.frame.width, height: win.frame.height };
         }
         win.frame = { x: rect.x, y: rect.y, width: win.frame.width, height: win.frame.height };
-        // Mirror mover.js decision 10: a new placement cancels the same
+        // Mirror mover.js's superseded-placement cancellation (see
+        // docs/ARCHITECTURE.md): a new placement cancels the same
         // window's pending deferred ops.
         this._pending = this._pending.filter(p => p.win !== win);
         this._pending.push({ win, rect, applied, onSettled });
