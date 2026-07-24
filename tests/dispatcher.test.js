@@ -198,3 +198,9 @@ test('sub-minimum monitor-move rects are refused even without a record', () => {
   dispatcher.run(Action.NEXT_DISPLAY);
   assert.equal(mover.calls.filter(c => c[0] === 'apply').length, 0);
 });
+
+test('dispatcher destroy is idempotent', () => {
+  const { dispatcher } = setup();
+  dispatcher.destroy();
+  dispatcher.destroy();   // must not throw
+});

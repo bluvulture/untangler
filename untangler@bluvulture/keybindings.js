@@ -36,6 +36,8 @@ export class KeybindingManager {
     }
 
     enable() {
+        if (this._registered.length > 0)
+            return; // idempotent: already enabled
         for (const [name, action] of Object.entries(KEYBINDINGS)) {
             Main.wm.addKeybinding(
                 name,

@@ -45,6 +45,8 @@ export class DragSnapManager {
     }
 
     enable() {
+        if (this._preview)
+            return; // idempotent: already enabled
         this._preview = new ZonePreview();
         this._grabBeginId = global.display.connect('grab-op-begin',
             (_display, window, op) => this._onGrabBegin(window, op));
