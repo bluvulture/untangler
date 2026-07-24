@@ -2,3 +2,4 @@ node_modules/
 *.zip
 untangler@bluvulture/schemas/gschemas.compiled
 docs/superpowers
+docs/history
