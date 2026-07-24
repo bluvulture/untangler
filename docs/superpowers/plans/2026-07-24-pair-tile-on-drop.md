@@ -693,6 +693,183 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 If the target window B closes in the final <16 ms between the last poll and `grab-op-end`, `applyPairTile` may touch a disposed `Meta.Window`. The poll refreshes the candidate every 16 ms (a closed window drops out of `list_windows()` on the next tick), so the race window is one tick; the dispatcher's guards make the worst case a caught GJS error on a dead wrapper. Accepted for v1 of this feature — reviewers should note but not block on it.
 
+## Post-Review Fixes (final feature review)
+
+Two defects found by the final review, one commit, message
+`fix: maximized windows are snap/pair eligible; purge stale records on drag paths`:
+
+**Root cause A (Critical):** Mutter's `meta_window_allows_resize()` is false for
+maximized (and fullscreen/native-tiled) windows, so `canResize`/`allows_resize`
+guards silently exclude maximized windows — from pair-tiling (spec §2 promises
+maximized B is eligible) AND from v1 keyboard snaps (v1 spec 3.7's
+unmaximize-first flow). "Maximized" must count as snappable/resizable at every
+guard; the apply path already unmaximizes first.
+
+**Root cause B (Important):** lazy manual-change detection ran only in `run()`,
+so `applyZone`/`applyPairTile` could reuse stale records — Restore then returns
+pre-manual-move geometry, violating pair spec §5.
+
+1. `untangler@nebojsa.ilic/actions.js` — replace the manual-change block in `run()`:
+
+```js
+        // Lazy manual-change detection: a manual move/resize since our
+        // last snap resets the cycle and invalidates restore geometry.
+        let record = this._records.get(win);
+        if (record?.lastApplied && !record.settling &&
+            !rectsEqual(frame, record.lastApplied, MANUAL_CHANGE_TOLERANCE)) {
+            this._records.delete(win);
+            this._cycles.reset(id);
+            record = undefined;
+        }
+```
+
+with:
+
+```js
+        // Lazy manual-change detection (spec 3.2/3.3).
+        const record = this._freshRecord(win, id, frame);
+```
+
+(and since `record` is no longer reassigned, `let` → `const` is part of this edit).
+
+Add the helper directly after `_ensureRecord`:
+
+```js
+    // Lazy manual-change detection (spec 3.2/3.3): a manual move/resize
+    // since our last snap resets the cycle and invalidates restore
+    // geometry. Runs on every path that reuses a record — keyboard, zone
+    // drop, and pair drop. Returns the still-valid record, or undefined.
+    _freshRecord(win, id, frame) {
+        let record = this._records.get(win);
+        if (record?.lastApplied && !record.settling &&
+            !rectsEqual(frame, record.lastApplied, MANUAL_CHANGE_TOLERANCE)) {
+            this._records.delete(win);
+            this._cycles.reset(id);
+            record = undefined;
+        }
+        return record;
+    }
+
+    // Mutter reports allows_resize() === false for maximized windows, but
+    // snapping one is exactly the unmaximize-first case the spec demands
+    // (v1 spec 3.7, pair spec §2) — maximized counts as resizable here.
+    _snappable(win) {
+        return this._mover.canResize(win) || this._mover.isMaximized(win);
+    }
+```
+
+In `_snap`, replace the guard:
+
+```js
+        // Spec 3.7: resize actions skip fixed-size windows.
+        if (!this._mover.canResize(win))
+            return;
+```
+
+with:
+
+```js
+        // Spec 3.7: resize actions skip fixed-size windows (maximized
+        // windows count as resizable — see _snappable).
+        if (!this._snappable(win))
+            return;
+```
+
+In `applyZone`, insert stale-record purge after the frame read and use the new guard — replace:
+
+```js
+        const id = this._mover.windowId(win);
+        this._cycles.reset(id);
+        const frame = this._mover.frameRect(win);
+        if (zone.action === Action.MAXIMIZE) {
+```
+
+with:
+
+```js
+        const id = this._mover.windowId(win);
+        this._cycles.reset(id);
+        const frame = this._mover.frameRect(win);
+        this._freshRecord(win, id, frame);
+        if (zone.action === Action.MAXIMIZE) {
+```
+
+and replace `applyZone`'s `if (!this._mover.canResize(win))` with `if (!this._snappable(win))`.
+
+Replace the whole `applyPairTile` with:
+
+```js
+    // Pair-tile drop (pair-tile spec §5): arrange the dragged window A and
+    // the drop target B side by side. Both get restore records, cycle
+    // resets, and settle tracking; B is raised so the result is visible
+    // even if a third window covered its new area. A keeps focus.
+    applyPairTile(winA, winB, workArea, side, variant) {
+        if (!winA || !winB)
+            return;
+        if (!this._snappable(winA) || !this._snappable(winB))
+            return;
+        const idA = this._mover.windowId(winA);
+        const idB = this._mover.windowId(winB);
+        const frameA = this._mover.frameRect(winA);
+        const frameB = this._mover.frameRect(winB);
+        this._freshRecord(winA, idA, frameA);
+        this._freshRecord(winB, idB, frameB);
+        const { a, b } = pairRects(workArea, side, variant, this._gaps());
+        this._cycles.reset(idA);
+        this._cycles.reset(idB);
+        this._applyTracked(winA, this._ensureRecord(winA, frameA), a);
+        this._applyTracked(winB, this._ensureRecord(winB, frameB), b);
+        this._mover.raise(winB);
+    }
+```
+
+2. `untangler@nebojsa.ilic/dragsnap.js` — in `_findPair`, replace:
+
+```js
+        if (!this._window.allows_resize())
+            return null;
+```
+
+with:
+
+```js
+        if (!this._window.allows_resize() &&
+            !(this._window.maximized_horizontally || this._window.maximized_vertically))
+            return null;
+```
+
+In `_findPairTarget`, replace:
+
+```js
+            if (win.is_fullscreen() || win.get_monitor() !== monitorIndex ||
+                !win.allows_resize())
+                return null;
+```
+
+with:
+
+```js
+            if (win.is_fullscreen() || win.get_monitor() !== monitorIndex)
+                return null;
+            // Maximized counts as pair-eligible (pair spec §2) even though
+            // Mutter reports allows_resize() === false for it.
+            if (!win.allows_resize() &&
+                !(win.maximized_horizontally || win.maximized_vertically))
+                return null;
+```
+
+3. `README.md` — replace the pair-tiling bullet's parenthetical so it reads:
+
+```markdown
+- Pair tiling: drop a window onto the middle of another window to tile the
+  two side by side (in Always mode, hold the modifier for a ⅔ / ⅓ split) —
+  off/modifier/always in Preferences
+```
+
+4. Rebuild the local dev artifacts: `glib-compile-schemas 'untangler@nebojsa.ilic/schemas/'` and re-run the pack command from the v1 plan Task 7 Step 4 (refreshes the git-ignored zip so no stale v1 zip lingers).
+
+Verification: `npm run check && npm test && echo ALL-OK` → 44 tests, ALL-OK.
+
 ## Spec coverage map
 
 | Spec § | Task |
