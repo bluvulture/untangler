@@ -21,3 +21,8 @@ All notable changes to Untangler are documented here. The format follows
 - GTK4/Adwaita preferences: shortcut capture with system-conflict warnings,
   gaps, cycling toggle, drag/pair modes.
 - 51 Node-run unit tests over the pure geometry/cycling/zone modules.
+- Translatable preferences (gettext domain `untangler`); duplicate-shortcut
+  warnings inside Untangler; conflict warnings refresh live.
+- Hardened shell boundary: all-or-nothing pair drops, ownership-aware native
+  edge-tiling handling, bounded Wayland settle retries, crash-safe lifecycle,
+  prefixed failure logging.
