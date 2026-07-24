@@ -14,6 +14,7 @@ import {
     matchSnappedRect, splitFootprint,
 } from './geometry.js';
 import { ZonePreview } from './preview.js';
+import { logWarn } from './log.js';
 
 const POLL_INTERVAL_MS = 16; // ~60 Hz; the source exists only during a drag
 const PAIR_CENTRAL_INSET = 0.25; // pair-tile hit region: central 50% × 50%
@@ -25,6 +26,8 @@ const MODIFIER_MASKS = {
     super: Clutter.ModifierType.MOD4_MASK,
 };
 
+const rectKey = r => `${r.x},${r.y},${r.width},${r.height}`;
+
 export class DragSnapManager {
     constructor(settings, dispatcher, mover) {
         this._settings = settings;
@@ -34,7 +37,8 @@ export class DragSnapManager {
         this._mutterSettings = null;
         this._grabBeginId = 0;
         this._grabEndId = 0;
-        this._modeChangedId = 0;
+        this._settingsChangedId = 0;
+        this._mutterChangedId = 0;
         this._pollId = 0;
         this._window = null;
         this._startFrame = null;
@@ -52,9 +56,22 @@ export class DragSnapManager {
             (_display, window, op) => this._onGrabBegin(window, op));
         this._grabEndId = global.display.connect('grab-op-end',
             (_display, window, op) => this._onGrabEnd(window, op));
-        this._modeChangedId = this._settings.connect('changed::drag-snap-mode',
-            () => this._syncEdgeTiling());
+        this._settingsChangedId = this._settings.connect('changed',
+            (_settings, key) => this._onSettingChanged(key));
         this._syncEdgeTiling();
+    }
+
+    _onSettingChanged(key) {
+        if (key === 'drag-snap-mode') {
+            this._syncEdgeTiling();
+            if (this._settings.get_string('drag-snap-mode') === 'off')
+                this._stopTracking();
+        }
+        if (key === 'show-preview' && !this._settings.get_boolean('show-preview'))
+            this._preview?.hide();
+        // Any relevant knob invalidates the memoized candidate so the next
+        // 16 ms tick recomputes rects and preview with fresh values.
+        this._zoneKey = null;
     }
 
     destroy() {
@@ -67,9 +84,9 @@ export class DragSnapManager {
             global.display.disconnect(this._grabEndId);
             this._grabEndId = 0;
         }
-        if (this._modeChangedId) {
-            this._settings.disconnect(this._modeChangedId);
-            this._modeChangedId = 0;
+        if (this._settingsChangedId) {
+            this._settings.disconnect(this._settingsChangedId);
+            this._settingsChangedId = 0;
         }
         this._restoreEdgeTiling();
         this._preview?.destroy();
@@ -94,23 +111,55 @@ export class DragSnapManager {
 
     _suppressEdgeTiling() {
         const mutter = this._mutter();
+        if (!mutter.is_writable('edge-tiling')) {
+            logWarn('org.gnome.mutter edge-tiling is not writable; native edge tiling stays active alongside Untangler zones');
+            return;
+        }
         if (!this._settings.get_boolean('edge-tiling-suppressed')) {
-            // First suppression: remember the user's value. If the shell
-            // crashed while suppressed, the flag is still set and the saved
-            // value is still the user's original — do NOT overwrite it with
-            // our own `false` (spec §7 crash-recovery risk).
-            this._settings.set_boolean('saved-edge-tiling',
-                mutter.get_boolean('edge-tiling'));
+            // First suppression: remember the user's value. Never overwrite
+            // the saved value while already suppressed (crash recovery).
+            this._settings.set_boolean('saved-edge-tiling', mutter.get_boolean('edge-tiling'));
             this._settings.set_boolean('edge-tiling-suppressed', true);
         }
         mutter.set_boolean('edge-tiling', false);
+        if (mutter.get_boolean('edge-tiling') !== false) {
+            logWarn('failed to suppress native edge tiling');
+            this._settings.set_boolean('edge-tiling-suppressed', false);
+            return;
+        }
+        this._watchMutter();
+    }
+
+    _watchMutter() {
+        if (this._mutterChangedId)
+            return;
+        this._mutterChangedId = this._mutter().connect('changed::edge-tiling', () => {
+            // An external actor re-enabled native tiling while we were
+            // suppressing: adopt it — stop claiming ownership, don't fight.
+            if (this._settings.get_boolean('edge-tiling-suppressed') &&
+                this._mutter().get_boolean('edge-tiling')) {
+                logWarn('native edge tiling re-enabled externally; adopting');
+                this._settings.set_boolean('edge-tiling-suppressed', false);
+            }
+        });
     }
 
     _restoreEdgeTiling() {
+        // Disconnect the watcher FIRST so our own restore write can't be
+        // misread as an external change.
+        if (this._mutterChangedId) {
+            this._mutter().disconnect(this._mutterChangedId);
+            this._mutterChangedId = 0;
+        }
         if (!this._settings.get_boolean('edge-tiling-suppressed'))
             return;
-        this._mutter().set_boolean('edge-tiling',
-            this._settings.get_boolean('saved-edge-tiling'));
+        const mutter = this._mutter();
+        // Restore only if the current value is still the one we imposed.
+        // The claim flag is cleared AFTER the write: a crash mid-restore
+        // must leave the saved user value recoverable on the next enable
+        // (v1 crash-recovery invariant).
+        if (mutter.get_boolean('edge-tiling') === false && mutter.is_writable('edge-tiling'))
+            mutter.set_boolean('edge-tiling', this._settings.get_boolean('saved-edge-tiling'));
         this._settings.set_boolean('edge-tiling-suppressed', false);
     }
 
@@ -181,6 +230,16 @@ export class DragSnapManager {
             return;
         const [x, y, mods] = global.get_pointer();
         const mode = this._settings.get_string('drag-snap-mode');
+        if (mode === 'off') {
+            this._preview?.hide();
+            return;
+        }
+        // 'replace' and 'modifier' are the active modes; anything else is
+        // impossible per the schema choices and treated as off.
+        if (mode !== 'replace' && mode !== 'modifier') {
+            this._preview?.hide();
+            return;
+        }
         const modifierName = this._settings.get_string('drag-snap-modifier');
         const mask = MODIFIER_MASKS[modifierName] ?? MODIFIER_MASKS.ctrl;
         const modifierHeld = (mods & mask) !== 0;
@@ -211,7 +270,6 @@ export class DragSnapManager {
             }
         }
 
-        const rectKey = r => `${r.x},${r.y},${r.width},${r.height}`;
         const key = zone && workArea
             ? `${zone.action}:${zone.cycleIndex}:${workArea.x}:${workArea.y}:${workArea.width}:${workArea.height}`
             : pair && workArea

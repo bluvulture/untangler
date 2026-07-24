@@ -30,6 +30,12 @@ or a real session. Host verified: GNOME Shell 46 / Ubuntu 24.04.
 - [ ] Drag across monitor boundary: preview jumps to the other monitor's work area
 - [ ] Fixed-size window: dragging shows no zone/pair previews at all
 - [ ] Restore after a drag-snap returns pre-drag size
+- [ ] Switch drag snapping to Off DURING a drag: preview vanishes, drop is a plain move
+- [ ] Change gaps during a drag: the preview reflects the new gaps within a tick
+- [ ] Toggle "show zone preview" off during a drag: preview hides immediately
+- [ ] While Replace mode is active, run `gsettings set org.gnome.mutter edge-tiling true` externally: Untangler logs "adopting" and stops claiming the setting; disable no longer overwrites it
+- [ ] Slow/heavy client (e.g. LibreOffice): snap lands correctly even when the first read-back sees stale geometry (bounded retry)
+- [ ] Pair drop while closing the target window: no half-applied layout (either full pair or plain move)
 
 ## Lifecycle
 - [ ] enable → use → disable → re-enable ×10, then check
