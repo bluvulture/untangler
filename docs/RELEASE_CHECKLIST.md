@@ -40,7 +40,8 @@ Esc cancellation; rapid repeated shortcuts; pair target closed mid-drop.
       pseudonymous (bluvulture; repo git config already set). Before
       flipping public: rewrite history once with git filter-repo (map all
       author/committer names to bluvulture + the noreply email; drop the
-      old-UUID docs/superpowers blobs from history), force-push the
+      old-UUID working-doc blobs (the git-ignored superpowers directory)
+      from history), force-push the
       rewritten main (private repo, no forks — safe), re-verify CI green;
       enable private vulnerability reporting; enable Discussions (or
       update SUPPORT.md); then flip the repository to public
