@@ -1,6 +1,5 @@
 # Untangler
-
-Rectangle-style keyboard window snapping for GNOME Shell 46–48 (Wayland and X11).
+Keyboard window snapping for GNOME Shell 46 - 48 (Wayland and X11).
 
 ## Features
 
