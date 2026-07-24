@@ -3,7 +3,7 @@
 <schemalist gettext-domain="untangler">
   <schema id="org.gnome.shell.extensions.untangler" path="/org/gnome/shell/extensions/untangler/">
 
-    <!-- Keyboard actions (spec 3.1). Type 'as' as required by Main.wm.addKeybinding. -->
+    <!-- Keyboard actions. Type 'as' as required by Main.wm.addKeybinding. -->
     <key name="snap-left-half" type="as"><default><![CDATA[['<Super><Alt>Left']]]></default><summary>Left half (cycles 1/2, 2/3, 1/3)</summary></key>
     <key name="snap-right-half" type="as"><default><![CDATA[['<Super><Alt>Right']]]></default><summary>Right half (cycles 1/2, 2/3, 1/3)</summary></key>
     <key name="snap-top-half" type="as"><default><![CDATA[['<Super><Alt>Up']]]></default><summary>Top half (cycles 1/2, 2/3, 1/3)</summary></key>
@@ -22,12 +22,12 @@
     <key name="snap-next-display" type="as"><default><![CDATA[['<Super><Alt>Page_Down']]]></default><summary>Move to next display</summary></key>
     <key name="snap-prev-display" type="as"><default><![CDATA[['<Super><Alt>Page_Up']]]></default><summary>Move to previous display</summary></key>
 
-    <!-- Behavior (spec 3.5, 4.5) -->
+    <!-- Behavior -->
     <key name="outer-gap" type="i"><default>0</default><range min="0" max="128"/><summary>Gap between windows and work-area edge (px)</summary></key>
     <key name="inner-gap" type="i"><default>0</default><range min="0" max="128"/><summary>Gap between adjacent snapped windows (px)</summary></key>
     <key name="cycle-sizes-enabled" type="b"><default>true</default><summary>Repeated presses cycle through size variants</summary></key>
 
-    <!-- Drag snapping (spec 3.6, 4.5) -->
+    <!-- Drag snapping -->
     <key name="drag-snap-mode" type="s">
       <choices><choice value="off"/><choice value="replace"/><choice value="modifier"/></choices>
       <default>'replace'</default>

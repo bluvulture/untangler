@@ -16,8 +16,8 @@ settings names, types, ranges, and defaults.
 | `mover.js` | shell process | GLib, Meta, geometry | The only file calling `Meta.Window` methods; deferred settle machinery |
 | `keybindings.js` | shell process | Meta, Shell, Main, geometry | Registers/removes the 17 shortcuts |
 | `dragsnap.js` | shell process | Clutter, Gio, GLib, Meta, Main, geometry, log, preview | Drag tracking, zone/pair/footprint candidates, edge-tiling ownership |
-| `preview.js` | shell process | Clutter, St | The two translucent preview rects |
-| `extension.js` | shell process | Shell Extension API + the above | Lifecycle only: build on enable, isolated teardown on disable |
+| `preview.js` | shell process | Clutter, St | The two translucent preview rects (`.untangler-zone-preview`, `.untangler-zone-preview-dim`) |
+| `extension.js` | shell process | Extension API, the shell-side modules above, log | Lifecycle only: build on enable, isolated teardown on disable |
 | `prefs.js` | separate GTK process | Adw, Gdk, Gio, Gtk, prefs resource | Preferences dialog; talks to the extension only through GSettings |
 
 The purity boundary is enforced by tests being plain-Node: `geometry.js`,
@@ -26,10 +26,12 @@ The purity boundary is enforced by tests being plain-Node: `geometry.js`,
 ## Placement model
 
 Rects are plain `{x, y, width, height}` objects in logical pixels; gaps are
-`{outer, inner}`. Every rect producer clamps gaps (`clampGaps`) so any
-producible slice keeps at least `MIN_PLACEMENT_PX` (16 px) per axis, and the
-dispatcher refuses anything smaller before it reaches Mutter (with an
-`Untangler:` log line).
+`{outer, inner}`. Gap settings are clamped (`clampGaps`) inside the rect
+producers so canonical slices keep at least `MIN_PLACEMENT_PX` (16 px) per
+axis; `splitFootprint` guards its own seam and refuses unsplittable
+footprints; and the dispatcher refuses ANY rect below the minimum before it
+reaches Mutter (with an `Untangler:` log line) — that final guard is what
+makes the invariant unconditional.
 
 Per window the dispatcher keeps one record (WeakMap):
 
@@ -48,7 +50,8 @@ apart, until the size matches or stabilizes — slow Wayland clients ack
 late). If the app clamped our size (minimum sizes), the actual size is
 re-centered within the target and reported back via `onSettled`. A new
 placement for the same window **cancels** any pending deferred work for it
-(per-window WeakMap of source ids) — rapid re-placements cannot race.
+(superseded-placement cancellation; per-window WeakMap of source ids) —
+rapid re-placements cannot race.
 
 ## Drag pipeline
 
@@ -66,10 +69,13 @@ window snappable) starts a 16 ms poll; `grab-op-end` stops it. Per tick:
    - **Footprint split** if the target sits in a recognized snapped region —
      the dispatcher's own fresh tracking first (any rect we placed), else a
      stateless geometric match against the canonical half/quarter/third
-     rects (survives shell restarts; ⅔-fragments are only recognized while
-     tracked). Split along the longer axis, dragged window takes the
-     pointer's end, variant → ⅔/⅓; refused (→ whole-area halves) if a piece
-     would drop below the placement minimum.
+     rects (survives shell restarts and covers every canonical cycle rect —
+     halves at ½/⅔/⅓, quarters at ¼/⅙, thirds). Non-canonical fragments
+     left by earlier footprint splits, plus almost-maximized and centered
+     placements, are recognized only while live tracking remembers them.
+     Split along the longer axis, dragged window takes the pointer's end,
+     variant → ⅔/⅓; refused (→ whole-area halves) if a piece would drop
+     below the placement minimum.
    - **Whole-area halves** otherwise (dragged window takes the drop side).
 4. The rects are computed once per change and the same objects are
    previewed and applied — preview and drop cannot disagree.
@@ -90,9 +96,10 @@ Replace mode rewrites the GLOBAL `org.gnome.mutter edge-tiling` setting,
 ownership-aware: write only if writable, verify by read-back, remember the
 user's original value once (crash-safe: never overwritten while the claim
 flag stands), watch for external changes and **adopt** (stop claiming) if
-something else re-enables native tiling, restore on disable only if the
-current value is still the one we imposed. Recovery command if anything
-ever goes wrong: `gsettings reset org.gnome.mutter edge-tiling`.
+something else re-enables native tiling, restore on disable — or whenever
+the mode leaves Replace — only if the current value is still the one we
+imposed. Recovery command if anything ever goes wrong:
+`gsettings reset org.gnome.mutter edge-tiling`.
 
 ## Interaction rules (the non-obvious ones)
 
@@ -102,13 +109,17 @@ ever goes wrong: `gsettings reset org.gnome.mutter edge-tiling`.
 4. The modifier means "variant sizes" only when it is not already an
    activation key (Modifier-only drag mode, or pair mode "With modifier").
 5. Footprints split along their longer axis.
-6. Stateless footprint recognition only knows canonical halves/quarters/
-   thirds; odd fragments are recognized only while in-memory tracking lives.
+6. Stateless footprint recognition knows every canonical snap rect,
+   including cycled sizes like two-thirds; fragments produced by footprint
+   splits themselves — and almost-maximize/centered placements — are
+   recognized only while in-memory tracking lives.
 7. Preview and final geometry can be constrained by an app's minimum size —
    the window is then re-centered within the target zone.
 8. A maximize-zone preview can appear for a window that cannot maximize
    (resizable but `can_maximize()` false); the drop is a no-op. Previews are
-   suppressed entirely only for fixed-size windows.
+   suppressed entirely only for fixed-size windows. A pair or footprint
+   preview can likewise advertise a drop that is refused at apply time when
+   a piece would fall below the placement minimum (tiny-footprint cases).
 
 ## GNOME version notes
 
