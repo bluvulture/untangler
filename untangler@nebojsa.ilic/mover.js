@@ -83,6 +83,10 @@ export class WindowMover {
         return Boolean(window.maximized_horizontally || window.maximized_vertically);
     }
 
+    raise(window) {
+        window.raise();
+    }
+
     maximize(window) {
         // A pending read-back from an earlier snap must not fire after
         // maximizing — it would move the window with stale coordinates and

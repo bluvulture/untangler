@@ -181,6 +181,10 @@ function buildDragPage(settings) {
         'Hold while dragging for two-thirds/third variants; in Modifier-only mode this activates the zones',
         ['ctrl', 'alt', 'shift', 'super'],
         ['Ctrl', 'Alt', 'Shift', 'Super']));
+    group.add(comboRow(settings, 'pair-tile-mode', 'Pair tiling on drop',
+        'Dropping a window onto the middle of another window tiles the two side by side',
+        ['off', 'modifier', 'always'],
+        ['Off', 'With modifier held', 'Always']));
     group.add(spinRow(settings, 'edge-band-px', 'Edge band size',
         'Zone trigger depth from the screen edges, in pixels', 4, 64));
     group.add(switchRow(settings, 'show-preview', 'Show zone preview',

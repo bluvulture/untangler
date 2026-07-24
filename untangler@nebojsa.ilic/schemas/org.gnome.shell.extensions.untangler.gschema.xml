@@ -37,6 +37,11 @@
       <default>'ctrl'</default>
       <summary>Modifier for size variants (activation key in modifier-only mode)</summary>
     </key>
+    <key name="pair-tile-mode" type="s">
+      <choices><choice value="off"/><choice value="modifier"/><choice value="always"/></choices>
+      <default>'always'</default>
+      <summary>Pair-tile when dropping a window onto another window</summary>
+    </key>
     <key name="edge-band-px" type="i"><default>16</default><range min="4" max="64"/><summary>Edge zone trigger depth (px)</summary></key>
     <key name="show-preview" type="b"><default>true</default><summary>Show translucent preview of the target zone while dragging</summary></key>
     <key name="saved-edge-tiling" type="b"><default>true</default><summary>User's org.gnome.mutter edge-tiling value before we suppressed it</summary></key>

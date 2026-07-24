@@ -3,7 +3,7 @@
 // passed into the constructor (spec §2 purity boundary).
 import {
     Action, rectForAction, cycleLength, centerRect, mapRectToWorkArea,
-    rectsEqual, zoneRect,
+    rectsEqual, zoneRect, pairRects,
 } from './geometry.js';
 import { CycleTracker } from './cycle.js';
 
@@ -83,6 +83,23 @@ export class ActionDispatcher {
             return;
         const rect = zoneRect(zone, workArea, this._gaps());
         this._applyTracked(win, this._ensureRecord(win, frame), rect);
+    }
+
+    // Pair-tile drop (pair-tile spec §5): arrange the dragged window A and
+    // the drop target B side by side. Both get restore records, cycle
+    // resets, and settle tracking; B is raised so the result is visible
+    // even if a third window covered its new area. A keeps focus.
+    applyPairTile(winA, winB, workArea, side, variant) {
+        if (!winA || !winB)
+            return;
+        if (!this._mover.canResize(winA) || !this._mover.canResize(winB))
+            return;
+        const { a, b } = pairRects(workArea, side, variant, this._gaps());
+        this._cycles.reset(this._mover.windowId(winA));
+        this._cycles.reset(this._mover.windowId(winB));
+        this._applyTracked(winA, this._ensureRecord(winA, this._mover.frameRect(winA)), a);
+        this._applyTracked(winB, this._ensureRecord(winB, this._mover.frameRect(winB)), b);
+        this._mover.raise(winB);
     }
 
     _gaps() {
