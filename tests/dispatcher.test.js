@@ -133,6 +133,12 @@ test('rects below MIN_PLACEMENT_PX are never applied', () => {
   assert.equal(mover.calls.filter(c => c[0] === 'apply').length, 0);
 });
 
+test('zone maximize is gated on canMaximize too', () => {
+  const { mover, win, dispatcher } = setup({ canMaximize: false });
+  dispatcher.applyZone(win, { action: Action.MAXIMIZE, cycleIndex: 0 }, WA);
+  assert.equal(mover.calls.filter(c => c[0] === 'maximize').length, 0);
+});
+
 test('monitor move maps the fractional rect and resets the cycle', () => {
   const WA2 = { x: 1920, y: 0, width: 1920, height: 1080 };
   const { mover, win, dispatcher } = setup({}, {}, { workAreas: [WA, WA2] });
