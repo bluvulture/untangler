@@ -230,7 +230,7 @@ function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
 }
 
-// --- Pair tiling (docs/superpowers/specs/2026-07-24-pair-tile-on-drop-design.md) ---
+// --- Pair tiling: drop one window onto another to tile them side by side ---
 
 // Which side the dragged window takes: 'left' iff the pointer is left of
 // the target frame's horizontal center ('right' on the exact center).
@@ -271,7 +271,7 @@ export function rectContains(rect, px, py) {
         py >= rect.y && py < rect.y + rect.height;
 }
 
-// --- Footprint split (docs/superpowers/specs/2026-07-24-pair-footprint-split-design.md) ---
+// --- Footprint split: dropping onto a snapped window splits its region ---
 
 // Actions whose rects count as a "snapped footprint" for the stateless
 // geometric match. Almost-maximize and centered placements are absent on
