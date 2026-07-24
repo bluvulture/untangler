@@ -82,8 +82,9 @@ test('splitFootprint refuses when pieces would fall below MIN_PLACEMENT_PX', () 
 
 test('splitFootprint clamps inner gap to keep pieces >= MIN', () => {
   const fp = { x: 0, y: 0, width: 300, height: 100 };            // horizontal split
-  const { a, b } = splitFootprint(fp, 10, 50, false, 128);        // absurd gap
-  assert.ok(a.width >= MIN_PLACEMENT_PX && b.width >= MIN_PLACEMENT_PX);
+  const { a, b } = splitFootprint(fp, 10, 50, false, 300);        // gap > bound 2*(150-16)=268
+  assert.equal(a.width, MIN_PLACEMENT_PX);                        // clamp pins each piece to exactly MIN
+  assert.equal(b.width, MIN_PLACEMENT_PX);
   assert.equal(a.width + b.width + (b.x - (a.x + a.width)), 300); // still tiles exactly
 });
 
