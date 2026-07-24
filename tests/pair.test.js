@@ -97,3 +97,9 @@ test('rectContains is half-open', () => {
   assert.equal(rectContains(r, 10, 70), false);
   assert.equal(rectContains(r, 9, 20), false);
 });
+
+test('pairRects with pathological gaps still yields placeable rects', () => {
+  const wa = { x: 0, y: 0, width: 400, height: 300 };
+  const { a, b } = pairRects(wa, 'left', true, { outer: 128, inner: 128 });
+  assert.ok(a.width > 0 && a.height > 0 && b.width > 0 && b.height > 0);
+});

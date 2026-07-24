@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {
   Action, NO_GAPS, cycleLength, rectForAction, centerRect,
   mapRectToWorkArea, recenterWithin, rectsEqual,
+  clampGaps, MIN_PLACEMENT_PX, matchSnappedRect,
 } from '../untangler@bluvulture/geometry.js';
 
 const WA = { x: 0, y: 0, width: 1200, height: 600 };
@@ -158,4 +159,44 @@ test('rectsEqual with tolerance', () => {
 test('rectForAction throws for actions without geometry', () => {
   for (const action of [Action.MAXIMIZE, Action.CENTER, Action.RESTORE, Action.NEXT_DISPLAY, Action.PREV_DISPLAY, 'nonsense'])
     assert.throws(() => rectForAction(WA, action, 0), /no geometry/i);
+});
+
+test('clampGaps is a no-op for sane inputs and clamps pathological ones', () => {
+  const wa = { x: 0, y: 0, width: 1200, height: 600 };
+  assert.deepEqual(clampGaps(wa, { outer: 10, inner: 8 }), { outer: 10, inner: 8 });
+  const tiny = { x: 0, y: 0, width: 300, height: 200 };
+  const clamped = clampGaps(tiny, { outer: 128, inner: 128 });
+  assert.ok(clamped.outer <= 76, `outer ${clamped.outer}`);   // (200-3*16)/2
+  assert.ok(clamped.inner >= 0);
+  // every slice stays >= MIN on both axes: worst case is a third with
+  // interior edges on the smaller axis
+  const inner = 200 - 2 * clamped.outer;
+  assert.ok(Math.floor(inner / 3) - clamped.inner >= MIN_PLACEMENT_PX);
+});
+
+test('clampGaps never returns negative gaps', () => {
+  const absurd = { x: 0, y: 0, width: 40, height: 40 };
+  assert.deepEqual(clampGaps(absurd, { outer: 128, inner: 128 }), { outer: 0, inner: 0 });
+});
+
+test('rectForAction with max gaps on a small work area stays positive', () => {
+  const tiny = { x: 0, y: 0, width: 300, height: 200 };
+  for (const action of [Action.LEFT_HALF, Action.FIRST_THIRD, Action.TOP_LEFT_QUARTER]) {
+    const r = rectForAction(tiny, action, 0, { outer: 128, inner: 128 });
+    assert.ok(r.width > 0 && r.height > 0, `${action}: ${JSON.stringify(r)}`);
+  }
+});
+
+test('portrait work area: quarters use horizontal thirds (spec 3.1 letter)', () => {
+  const portrait = { x: 0, y: 0, width: 600, height: 1200 };
+  assert.deepEqual(rectForAction(portrait, Action.TOP_LEFT_QUARTER, 1),
+    { x: 0, y: 0, width: 200, height: 600 });
+});
+
+test('matchSnappedRect honors tolerance under gaps', () => {
+  const wa = { x: 0, y: 0, width: 1920, height: 1080 };
+  const gaps = { outer: 10, inner: 8 };
+  const half = rectForAction(wa, Action.LEFT_HALF, 0, gaps);
+  assert.deepEqual(matchSnappedRect({ ...half, x: half.x + 2 }, wa, gaps), half);
+  assert.equal(matchSnappedRect({ ...half, x: half.x + 3 }, wa, gaps), null);
 });

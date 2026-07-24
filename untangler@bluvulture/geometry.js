@@ -25,6 +25,24 @@ export const Action = Object.freeze({
 
 export const NO_GAPS = Object.freeze({ outer: 0, inner: 0 });
 
+// Minimum width/height (px) for any rect Untangler will place (release
+// plan §Release Blocker 4). Anything smaller is refused before Mutter.
+export const MIN_PLACEMENT_PX = 16;
+
+// Clamp gap settings so every producible slice keeps at least
+// MIN_PLACEMENT_PX on both axes for this work area. Worst case is a third
+// (smallest fraction in any cycle table) on the smaller axis. Pure and
+// idempotent; a no-op for sane inputs.
+export function clampGaps(workArea, gaps) {
+    const smaller = Math.min(workArea.width, workArea.height);
+    const outer = Math.max(0, Math.min(gaps.outer,
+        Math.floor((smaller - 3 * MIN_PLACEMENT_PX) / 2)));
+    const innerSpan = smaller - 2 * outer;
+    const inner = Math.max(0, Math.min(gaps.inner,
+        Math.floor(innerSpan / 3) - MIN_PLACEMENT_PX));
+    return { outer, inner };
+}
+
 // [startFraction, endFraction] spans per cycle step (spec 3.1):
 // halves cycle 1/2 → 2/3 → 1/3 anchored to their edge; quarters 1/4 → 1/6
 // (the 1/6 variant is a third along the long axis × half along the short).
@@ -58,6 +76,7 @@ export function cycleLength(action) {
 }
 
 export function rectForAction(workArea, action, cycleIndex = 0, gaps = NO_GAPS) {
+    gaps = clampGaps(workArea, gaps);
     if (action === Action.ALMOST_MAXIMIZE)
         return almostMaximize(workArea, gaps);
     const spans = SPANS[action];
@@ -72,6 +91,7 @@ export function rectForAction(workArea, action, cycleIndex = 0, gaps = NO_GAPS) 
 }
 
 export function centerRect(workArea, windowRect, gaps = NO_GAPS) {
+    gaps = clampGaps(workArea, gaps);
     const inner = insetAll(workArea, gaps.outer);
     return {
         x: inner.x + Math.round((inner.width - windowRect.width) / 2),
@@ -308,6 +328,15 @@ export function splitFootprint(footprint, pointerX, pointerY, variant = false, i
     const vertical = footprint.height > footprint.width;
     const origin = vertical ? footprint.y : footprint.x;
     const size = vertical ? footprint.height : footprint.width;
+    const crossSize = vertical ? footprint.width : footprint.height;
+    // Refuse splits that cannot keep both pieces placeable (release plan
+    // §Release Blocker 4). The smaller piece is a half normally, a third
+    // with the variant.
+    const smallestPiece = Math.round(size * (variant ? 1 / 3 : 1 / 2));
+    if (crossSize < MIN_PLACEMENT_PX || smallestPiece < MIN_PLACEMENT_PX)
+        return null;
+    // Clamp the seam so neither piece drops below MIN after gap insets.
+    innerGap = Math.max(0, Math.min(innerGap, 2 * (smallestPiece - MIN_PLACEMENT_PX)));
     const pointer = vertical ? pointerY : pointerX;
     const leading = pointer < origin + size / 2;
     const fraction = variant ? (leading ? 2 / 3 : 1 / 3) : 1 / 2;

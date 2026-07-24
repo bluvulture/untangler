@@ -261,10 +261,10 @@ export class DragSnapManager {
                 matchSnappedRect(target.frame, workArea, gaps);
         }
         if (footprint) {
-            return {
-                window: target.window,
-                rects: splitFootprint(footprint, x, y, variant, gaps.inner),
-            };
+            const rects = splitFootprint(footprint, x, y, variant, gaps.inner);
+            if (rects)
+                return { window: target.window, rects };
+            // Footprint too small to split — fall through to whole-area halves.
         }
         const side = pickPairSide(x, target.frame);
         return {

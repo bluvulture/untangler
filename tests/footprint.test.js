@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 
 import {
   Action, NO_GAPS, rectForAction, matchSnappedRect, splitFootprint,
+  MIN_PLACEMENT_PX,
 } from '../untangler@bluvulture/geometry.js';
 
 const WA = { x: 0, y: 0, width: 1920, height: 1080 };
@@ -68,4 +69,28 @@ test('splitFootprint: inner gap seam is exact for even and odd gaps', () => {
   const odd = splitFootprint(half, 480, 100, false, 7);
   assert.equal(odd.b.y - (odd.a.y + odd.a.height), 7);
   assert.equal(odd.a.height + odd.b.height + 7, half.height);
+});
+
+test('splitFootprint refuses when pieces would fall below MIN_PLACEMENT_PX', () => {
+  // 30 wide, horizontal split -> pieces of 15 < 16: refuse
+  assert.equal(splitFootprint({ x: 0, y: 0, width: 30, height: 20 }, 10, 10, false), null);
+  // cross-axis below MIN: refuse even though split pieces are large enough
+  assert.equal(splitFootprint({ x: 0, y: 0, width: 200, height: 12 }, 10, 6, false), null);
+  // comfortably large: never refused
+  assert.notEqual(splitFootprint({ x: 0, y: 0, width: 200, height: 100 }, 10, 10, false), null);
+});
+
+test('splitFootprint clamps inner gap to keep pieces >= MIN', () => {
+  const fp = { x: 0, y: 0, width: 300, height: 100 };            // horizontal split
+  const { a, b } = splitFootprint(fp, 10, 50, false, 128);        // absurd gap
+  assert.ok(a.width >= MIN_PLACEMENT_PX && b.width >= MIN_PLACEMENT_PX);
+  assert.equal(a.width + b.width + (b.x - (a.x + a.width)), 300); // still tiles exactly
+});
+
+test('splitFootprint: horizontal-axis seam with gap is exact', () => {
+  const fp = { x: 100, y: 0, width: 960, height: 400 };           // wide -> left/right
+  const { a, b } = splitFootprint(fp, 150, 200, false, 8);
+  assert.equal(b.x - (a.x + a.width), 8);
+  assert.equal(a.x, 100);
+  assert.equal(b.x + b.width, 1060);
 });
