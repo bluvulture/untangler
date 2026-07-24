@@ -269,3 +269,55 @@ export function rectContains(rect, px, py) {
     return px >= rect.x && px < rect.x + rect.width &&
         py >= rect.y && py < rect.y + rect.height;
 }
+
+// --- Footprint split (docs/superpowers/specs/2026-07-24-pair-footprint-split-design.md) ---
+
+// Actions whose rects count as a "snapped footprint" for the stateless
+// geometric match. Almost-maximize and centered placements are absent on
+// purpose — without live tracking they read as floating, and floating
+// targets pair as whole-area halves.
+const FOOTPRINT_ACTIONS = [
+    Action.LEFT_HALF, Action.RIGHT_HALF, Action.TOP_HALF, Action.BOTTOM_HALF,
+    Action.TOP_LEFT_QUARTER, Action.TOP_RIGHT_QUARTER,
+    Action.BOTTOM_LEFT_QUARTER, Action.BOTTOM_RIGHT_QUARTER,
+    Action.FIRST_THIRD, Action.CENTER_THIRD, Action.LAST_THIRD,
+];
+
+// Stateless recognition of a snapped window: does `frame` match one of
+// the canonical snap rects for this work area and gap settings? Returns
+// the matched canonical rect, or null.
+export function matchSnappedRect(frame, workArea, gaps = NO_GAPS, tolerance = 2) {
+    for (const action of FOOTPRINT_ACTIONS) {
+        for (let index = 0; index < cycleLength(action); index++) {
+            const rect = rectForAction(workArea, action, index, gaps);
+            if (rectsEqual(frame, rect, tolerance))
+                return rect;
+        }
+    }
+    return null;
+}
+
+// Split a snapped window's footprint between the dragged window (a) and
+// the target (b). Splits along the footprint's longer dimension (ties →
+// left/right); `a` takes the end nearest the pointer; with `variant`, a
+// gets two-thirds. The shared edge carries the inner gap with the same
+// ceil/floor convention as span(), from one shared boundary — so the two
+// pieces are exactly `innerGap` apart and tile the footprint.
+export function splitFootprint(footprint, pointerX, pointerY, variant = false, innerGap = 0) {
+    const vertical = footprint.height > footprint.width;
+    const origin = vertical ? footprint.y : footprint.x;
+    const size = vertical ? footprint.height : footprint.width;
+    const pointer = vertical ? pointerY : pointerX;
+    const leading = pointer < origin + size / 2;
+    const fraction = variant ? (leading ? 2 / 3 : 1 / 3) : 1 / 2;
+    const boundary = origin + Math.round(size * fraction);
+    const lead = { start: origin, end: boundary - Math.floor(innerGap / 2) };
+    const trail = { start: boundary + Math.ceil(innerGap / 2), end: origin + size };
+    const toRect = piece => vertical
+        ? { x: footprint.x, y: piece.start, width: footprint.width, height: piece.end - piece.start }
+        : { x: piece.start, y: footprint.y, width: piece.end - piece.start, height: footprint.height };
+    return {
+        a: toRect(leading ? lead : trail),
+        b: toRect(leading ? trail : lead),
+    };
+}
