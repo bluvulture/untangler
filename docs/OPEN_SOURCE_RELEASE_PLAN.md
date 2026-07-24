@@ -266,7 +266,7 @@ Actions:
 - [ ] Replace planned ESLint and CI statements with actual tooling or mark them as backlog.
 - [ ] Integrate pair tiling and footprint splitting.
 - [ ] Separate current behavior from historical decisions and future work.
-- [ ] Move durable design documents out of ignored `docs/superpowers` paths.
+- [ ] Move durable design documents out of the git-ignored superpowers directory.
 - [ ] Remove source comments that link to documentation unavailable in a normal clone.
 
 ### User behavior reference

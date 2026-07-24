@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// prefs.js — GTK4/Adwaita preferences (spec 4.6). Runs in a separate
-// process: no Shell imports allowed; talks to the extension only via
-// GSettings.
+// prefs.js — GTK4/Adwaita preferences. Runs in a separate process: no
+// Shell imports allowed; talks to the extension only via GSettings.
 import Adw from 'gi://Adw';
 import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
@@ -66,7 +65,7 @@ function buildShortcutRow(settings, key, title) {
     const sync = () => {
         const accel = settings.get_strv(key)[0] ?? '';
         shortcutLabel.accelerator = accel;
-        // Spec §7: warn inline about collisions with GNOME's own shortcuts.
+        // Warn inline about collisions with GNOME's own shortcuts.
         row.subtitle = conflictWarning(accel);
     };
     settings.connect(`changed::${key}`, sync);
@@ -110,7 +109,7 @@ function openCaptureDialog(row, settings, key) {
     dialog.present();
 }
 
-// --- Conflict detection against GNOME's own keybinding schemas (spec §7) ---
+// --- Conflict detection against GNOME's own keybinding schemas ---
 
 let systemShortcutsCache = null;
 

@@ -1,4 +1,4 @@
-# Untangler manual test matrix (spec §6)
+# Untangler manual test matrix
 
 Run in a nested shell (`dbus-run-session -- gnome-shell --nested --wayland`)
 or a real session. Host verified: GNOME Shell 46 / Ubuntu 24.04.

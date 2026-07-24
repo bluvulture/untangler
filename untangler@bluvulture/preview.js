@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// preview.js — translucent zone preview overlay (spec 3.6/4.4), plus a
-// dimmer secondary rect for pair-tiling (pair-tile spec §1).
+// preview.js — translucent zone preview overlay, plus a dimmer secondary
+// rect for pair-tiling.
 import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 

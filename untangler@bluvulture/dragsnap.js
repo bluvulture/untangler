@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// dragsnap.js — DragSnapManager (spec 3.6/4.4): grab-op tracking, 60 Hz
-// pointer polling during a move grab, zone preview, drop handling, and
-// native edge-tiling suppression with crash-safe restore.
+// dragsnap.js — DragSnapManager: grab-op tracking, 60 Hz pointer polling
+// during a move grab, zone preview, drop handling, and native edge-tiling
+// suppression with crash-safe restore.
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -94,7 +94,7 @@ export class DragSnapManager {
         this._mutterSettings = null;
     }
 
-    // --- Native edge-tiling suppression (spec 3.6/4.4) ---
+    // --- Native edge-tiling suppression ---
 
     _mutter() {
         if (!this._mutterSettings)
@@ -163,7 +163,7 @@ export class DragSnapManager {
         this._settings.set_boolean('edge-tiling-suppressed', false);
     }
 
-    // --- Grab lifecycle (spec 4.4) ---
+    // --- Grab lifecycle ---
 
     _onGrabBegin(window, op) {
         if (op !== Meta.GrabOp.MOVING)
@@ -298,10 +298,11 @@ export class DragSnapManager {
             this._preview?.keepBelow(actor);
     }
 
-    // Pair gating (pair spec §4) + target lookup + rect computation
-    // (footprint-split spec). Returns { window, rects: {a, b} } or null;
-    // `a` is the dragged window's rect. Rects are computed here, once per
-    // change, so the preview and the drop are guaranteed identical.
+    // Pair gating (see ARCHITECTURE.md: interaction rules) + target lookup
+    // + rect computation (footprint split). Returns { window, rects: {a,
+    // b} } or null; `a` is the dragged window's rect. Rects are computed
+    // here, once per change, so the preview and the drop are guaranteed
+    // identical.
     _findPair(x, y, monitorIndex, modifierHeld, mode, workArea, gaps) {
         const pairMode = this._settings.get_string('pair-tile-mode');
         if (pairMode === 'off')
@@ -312,12 +313,13 @@ export class DragSnapManager {
         if (!target)
             return null;
         // The modifier means "variant sizes" only when it is not already
-        // spoken for as an activation key (pair spec §4 table).
+        // spoken for as an activation key (see ARCHITECTURE.md:
+        // interaction rules).
         const variant = modifierHeld && pairMode === 'always' && mode !== 'modifier';
-        // Footprint split (spec §2): B's own fresh tracking first (any
-        // rect we placed counts), else the stateless geometric match;
-        // maximized B never has a footprint. No footprint → whole-area
-        // halves, exactly as before.
+        // Footprint split: B's own fresh tracking first (any rect we
+        // placed counts), else the stateless geometric match; maximized B
+        // never has a footprint. No footprint → whole-area halves,
+        // exactly as before.
         let footprint = null;
         if (!(target.window.maximized_horizontally || target.window.maximized_vertically)) {
             footprint = this._dispatcher.trackedRect(target.window, target.frame) ??
@@ -339,7 +341,7 @@ export class DragSnapManager {
     // The visible window under the pointer decides: pair with it if the
     // pointer is in its central region and it is eligible — otherwise no
     // pair at all. Windows beneath the one the user sees are never
-    // targets (pair-tile spec §2).
+    // targets.
     _findPairTarget(x, y, monitorIndex) {
         const windows = global.display.sort_windows_by_stacking(
             global.workspace_manager.get_active_workspace().list_windows());
@@ -355,8 +357,8 @@ export class DragSnapManager {
                 continue;
             if (win.is_fullscreen() || win.get_monitor() !== monitorIndex)
                 return null;
-            // Maximized counts as pair-eligible (pair spec §2) even though
-            // Mutter reports allows_resize() === false for it.
+            // Maximized counts as pair-eligible even though Mutter reports
+            // allows_resize() === false for it.
             if (!win.allows_resize() &&
                 !(win.maximized_horizontally || win.maximized_vertically))
                 return null;

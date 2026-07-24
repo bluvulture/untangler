@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// keybindings.js — registers/unregisters all shortcuts (spec 4.2).
+// keybindings.js — registers/unregisters all shortcuts.
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -50,7 +50,7 @@ export class KeybindingManager {
     }
 
     disable() {
-        // EGO requirement (spec 4.2): remove every registered binding.
+        // EGO requirement: remove every registered binding.
         for (const name of this._registered)
             Main.wm.removeKeybinding(name);
         this._registered = [];

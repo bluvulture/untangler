@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// geometry.js — GeometryEngine: pure functions only (spec §2 key principle).
+// geometry.js — GeometryEngine: pure functions only (see ARCHITECTURE.md:
+// module map and the purity boundary).
 // MUST NOT import from gi:// or resource:/// — this file runs under plain
 // Node for unit tests and is the extension's Shell-API-free core.
 
@@ -25,8 +26,8 @@ export const Action = Object.freeze({
 
 export const NO_GAPS = Object.freeze({ outer: 0, inner: 0 });
 
-// Minimum width/height (px) for any rect Untangler will place (release
-// plan §Release Blocker 4). Anything smaller is refused before Mutter.
+// Minimum width/height (px) for any rect Untangler will place. Anything
+// smaller is refused before Mutter.
 export const MIN_PLACEMENT_PX = 16;
 
 // Clamp gap settings so every producible slice keeps at least
@@ -43,7 +44,7 @@ export function clampGaps(workArea, gaps) {
     return { outer, inner };
 }
 
-// [startFraction, endFraction] spans per cycle step (spec 3.1):
+// [startFraction, endFraction] spans per cycle step:
 // halves cycle 1/2 → 2/3 → 1/3 anchored to their edge; quarters 1/4 → 1/6
 // (the 1/6 variant is a third along the long axis × half along the short).
 const LEAD_HALF = [[0, 1 / 2], [0, 2 / 3], [0, 1 / 3]];
@@ -101,7 +102,7 @@ export function centerRect(workArea, windowRect, gaps = NO_GAPS) {
     };
 }
 
-// Spec 3.4: express `rect` as fractions of `from`, reapply on `to`.
+// Express `rect` as fractions of `from`, reapply on `to`.
 export function mapRectToWorkArea(rect, from, to) {
     return {
         x: to.x + Math.round(((rect.x - from.x) / from.width) * to.width),
@@ -111,8 +112,8 @@ export function mapRectToWorkArea(rect, from, to) {
     };
 }
 
-// Spec 3.7: if the app clamped our resize (min size), center the actual
-// size inside the target rect instead of leaving it misaligned.
+// If the app clamped our resize (min size), center the actual size
+// inside the target rect instead of leaving it misaligned.
 export function recenterWithin(target, actualWidth, actualHeight) {
     return {
         x: target.x + Math.round((target.width - actualWidth) / 2),
@@ -163,7 +164,7 @@ function almostMaximize(workArea, gaps) {
     };
 }
 
-// --- Drag snap zones (spec 3.6) ---
+// --- Drag snap zones ---
 // Pure: pointer position + work area → { action, cycleIndex } | null.
 // `variant` = the two-thirds/thirds modifier is held; it bumps halves and
 // quarters to cycle step 1 (two-thirds / sixth). Precedence: corners, then
@@ -235,7 +236,7 @@ export function resolveZone(pointerX, pointerY, workArea, options = {}) {
 }
 
 // The rect a zone previews and applies. Maximize is performed via Meta's
-// own maximize (spec 3.1), so its preview is simply the whole work area.
+// own maximize, so its preview is simply the whole work area.
 export function zoneRect(zone, workArea, gaps = NO_GAPS) {
     if (zone.action === Action.MAXIMIZE) {
         return {
@@ -258,7 +259,7 @@ export function pickPairSide(pointerX, targetFrame) {
     return pointerX < targetFrame.x + targetFrame.width / 2 ? 'left' : 'right';
 }
 
-// The two rects for a pair-tile drop (spec §3). `side` is where the
+// The two rects for a pair-tile drop. `side` is where the
 // dragged window (a) goes. With `variant` (modifier held), a takes
 // two-thirds and b the remaining third — cycle indices 1 and 2 of the
 // half tables complement exactly, so the pair tiles like keyboard snaps.
@@ -273,7 +274,7 @@ export function pairRects(workArea, side, variant, gaps = NO_GAPS) {
 
 // `rect` inset by the given fraction of its size on each side
 // (0.25, 0.25 → the central 50% × 50%). Used for the pair-tile
-// central-region hit test (spec §2).
+// central-region hit test (see ARCHITECTURE.md: interaction rules).
 export function insetFraction(rect, fractionX, fractionY) {
     const dx = Math.round(rect.width * fractionX);
     const dy = Math.round(rect.height * fractionY);
@@ -329,9 +330,9 @@ export function splitFootprint(footprint, pointerX, pointerY, variant = false, i
     const origin = vertical ? footprint.y : footprint.x;
     const size = vertical ? footprint.height : footprint.width;
     const crossSize = vertical ? footprint.width : footprint.height;
-    // Refuse splits that cannot keep both pieces placeable (release plan
-    // §Release Blocker 4). The smaller piece is a half normally, a third
-    // with the variant.
+    // Refuse splits that cannot keep both pieces placeable (see
+    // ARCHITECTURE.md: placement model — MIN_PLACEMENT_PX). The smaller
+    // piece is a half normally, a third with the variant.
     const smallestPiece = Math.round(size * (variant ? 1 / 3 : 1 / 2));
     if (crossSize < MIN_PLACEMENT_PX || smallestPiece < MIN_PLACEMENT_PX)
         return null;

@@ -30,7 +30,7 @@ export default class UntanglerExtension extends Extension {
 
     disable() {
         // Each teardown step is isolated: one failure cannot strand the
-        // rest (release plan §Transactional lifecycle).
+        // rest.
         const steps = [
             () => { this._dragSnap?.destroy(); this._dragSnap = null; },
             () => { this._keybindings?.disable(); this._keybindings = null; },

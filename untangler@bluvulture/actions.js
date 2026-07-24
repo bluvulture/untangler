@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // actions.js — ActionDispatcher: orchestrates geometry + cycle + mover.
 // No gi:// imports here; all Mutter access goes through the WindowMover
-// passed into the constructor (spec §2 purity boundary).
+// passed into the constructor (see ARCHITECTURE.md: module map and the
+// purity boundary).
 import {
     Action, rectForAction, cycleLength, centerRect, mapRectToWorkArea,
     rectsEqual, zoneRect, MIN_PLACEMENT_PX,
@@ -17,11 +18,12 @@ export class ActionDispatcher {
         this._settings = settings;
         this._mover = mover;
         this._cycles = new CycleTracker();
-        // Per-window snap records: `original` = pre-snap geometry for
-        // Restore (spec 3.3), `lastApplied` = what we last set, used for
-        // lazy manual-change detection (spec 3.2/3.3 — checked on the next
-        // action instead of per-window signals; same observable behavior,
-        // nothing to disconnect). WeakMap so closed windows drop out.
+        // Per-window snap records (see ARCHITECTURE.md: placement model):
+        // `original` = pre-snap geometry for Restore, `lastApplied` = what
+        // we last set, used for lazy manual-change detection (checked on
+        // the next action instead of per-window signals; same observable
+        // behavior, nothing to disconnect). WeakMap so closed windows drop
+        // out.
         this._records = new WeakMap();
     }
 
@@ -35,7 +37,7 @@ export class ActionDispatcher {
             return;
         const frame = this._mover.frameRect(win);
 
-        // Lazy manual-change detection (spec 3.2/3.3).
+        // Lazy manual-change detection.
         const record = this._freshRecord(win, frame);
 
         switch (action) {
@@ -59,8 +61,8 @@ export class ActionDispatcher {
         }
     }
 
-    // Drag-snap drop path (spec 3.6): same restore-recording and gap
-    // handling as keyboard actions; cycle index resets.
+    // Drag-snap drop path: same restore-recording and gap handling as
+    // keyboard actions; cycle index resets.
     applyZone(win, zone, workArea) {
         if (!win)
             return;
@@ -82,10 +84,11 @@ export class ActionDispatcher {
         this._applyTracked(win, this._ensureRecord(win, frame), rect);
     }
 
-    // Pair drop — all-or-nothing (B2 spec §3 + §7b): revalidate both
-    // windows and BOTH rects before either moves; place the target (B)
-    // first and roll it back best-effort if the dragged window's placement
-    // fails, so a race can never leave a half-applied pair.
+    // Pair drop — all-or-nothing (see ARCHITECTURE.md: drag pipeline):
+    // revalidate both windows and BOTH rects before either moves; place
+    // the target (B) first and roll it back best-effort if the dragged
+    // window's placement fails, so a race can never leave a half-applied
+    // pair.
     applyPairRects(winA, winB, aRect, bRect) {
         if (!winA || !winB)
             return;
@@ -132,8 +135,8 @@ export class ActionDispatcher {
     }
 
     // Read-only: the rect we placed `win` at, if it is still exactly
-    // there (footprint-split spec §2.1). Used by drag-snap to decide
-    // whether a pair target sits in a snapped footprint.
+    // there. Used by drag-snap to decide whether a pair target sits in a
+    // snapped footprint (see ARCHITECTURE.md: drag pipeline).
     trackedRect(win, frame) {
         const record = this._records.get(win);
         if (record?.lastApplied && !record.settling &&
@@ -164,14 +167,14 @@ export class ActionDispatcher {
         return record;
     }
 
-    // Lazy manual-change detection (spec 3.2/3.3): a manual move/resize
-    // since our last snap resets the cycle and invalidates restore
-    // geometry. Runs on every path that reuses a record — keyboard, zone
-    // drop, and pair drop. Returns the still-valid record, or undefined.
-    // §7b: Mutter's maximize flags flip synchronously, so a manual
-    // unmaximize can't be caught by a signal at the moment it happens —
-    // we key on expectMaximized and check it lazily, at the next user
-    // action, same as the manual-move case above.
+    // Lazy manual-change detection: a manual move/resize since our last
+    // snap resets the cycle and invalidates restore geometry. Runs on
+    // every path that reuses a record — keyboard, zone drop, and pair
+    // drop. Returns the still-valid record, or undefined.
+    // Mutter's maximize flags flip synchronously, so a manual unmaximize
+    // can't be caught by a signal at the moment it happens — we key on
+    // expectMaximized and check it lazily, at the next user action, same
+    // as the manual-move case above.
     // Validated live by the TESTING.md row "rapid Maximize→Restore on Wayland".
     _freshRecord(win, frame) {
         let record = this._records.get(win);
@@ -188,8 +191,9 @@ export class ActionDispatcher {
     }
 
     // Mutter reports allows_resize() === false for maximized windows, but
-    // snapping one is exactly the unmaximize-first case the spec demands
-    // (v1 spec 3.7, pair spec §2) — maximized counts as resizable here.
+    // snapping one is exactly the unmaximize-first flow (see
+    // ARCHITECTURE.md: GNOME version notes) — maximized counts as
+    // resizable here.
     _snappable(win) {
         return this._mover.canResize(win) || this._mover.isMaximized(win);
     }
@@ -216,8 +220,8 @@ export class ActionDispatcher {
     }
 
     _snap(win, frame, action) {
-        // Spec 3.7: resize actions skip fixed-size windows (maximized
-        // windows count as resizable — see _snappable).
+        // Resize actions skip fixed-size windows (maximized windows count
+        // as resizable — see _snappable).
         if (!this._snappable(win))
             return;
         const length = this._settings.get_boolean('cycle-sizes-enabled')
@@ -241,8 +245,7 @@ export class ActionDispatcher {
     }
 
     _center(win, frame) {
-        // Center never resizes, so it's allowed for fixed-size windows
-        // (spec 3.7).
+        // Center never resizes, so it's allowed for fixed-size windows.
         this._cycles.advance(win, Action.CENTER, 1);
         const workArea = this._mover.workArea(win);
         const rect = centerRect(workArea, frame, this._gaps());

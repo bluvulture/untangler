@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // mover.js — WindowMover: the only file that calls Meta.Window methods.
-// Everything the dispatcher needs from Mutter goes through here (spec 4.7:
-// thin, replaceable Mutter surface).
+// Everything the dispatcher needs from Mutter goes through here — a thin,
+// replaceable Mutter surface.
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 
@@ -23,9 +23,10 @@ try {
 export class WindowMover {
     constructor() {
         this._pendingSources = new Set();
-        // Pending deferred ops per window (placement + read-back), so a new
-        // placement cancels superseded ones instead of racing them
-        // (decision 10).
+        // Pending deferred ops per window (placement + read-back), so a
+        // new placement cancels superseded ones instead of racing them
+        // (see ARCHITECTURE.md: placement model — superseded-placement
+        // cancellation).
         this._windowSources = new WeakMap();
     }
 
@@ -39,7 +40,7 @@ export class WindowMover {
         const window = global.display.get_focus_window();
         if (!window)
             return null;
-        // Spec 3.7: ignore docks, desktop, splash, DND, etc.
+        // Ignore docks, desktop, splash, DND, etc.
         if (window.get_window_type() !== Meta.WindowType.NORMAL)
             return null;
         return window;
@@ -106,9 +107,9 @@ export class WindowMover {
             window.unmaximize();
     }
 
-    // Apply a target rect (spec 3.7/4.3): unmaximize/untile first and defer
-    // one main-loop iteration when we did (unmaximize is async — an
-    // immediate resize races it). Then placement + deferred read-back: if
+    // Apply a target rect: unmaximize/untile first and defer one
+    // main-loop iteration when we did (unmaximize is async — an immediate
+    // resize races it). Then placement + deferred read-back: if
     // the frame's final size differs from the target (app min-size clamp,
     // or a move-only placement computed while the window was maximized),
     // re-center the actual size inside the target rect. `onSettled`
@@ -116,8 +117,8 @@ export class WindowMover {
     // tracking (manual-change detection) stays accurate.
     apply(window, rect, { resize = true, onSettled = null } = {}) {
         // Cancel superseded deferred work for this window first: a rapid
-        // second placement must not let the first one's deferred placement
-        // or read-back fire against the new geometry (decision 10).
+        // second placement must not let the first one's deferred
+        // placement or read-back fire against the new geometry.
         this._cancelPendingFor(window);
         if (this.isMaximized(window)) {
             this.unmaximize(window);
@@ -132,11 +133,11 @@ export class WindowMover {
             window.move_resize_frame(true, rect.x, rect.y, rect.width, rect.height);
         else
             window.move_frame(true, rect.x, rect.y);
-        // Bounded read-back (release plan §Wayland settling): a slow client
-        // may not have acked at +50 ms. Re-read until the size matches the
-        // target or stops changing, up to 3 reads, then settle with the
-        // last observation. Superseded placements still cancel the pending
-        // read via _cancelPendingFor (decision 10).
+        // Bounded read-back (see ARCHITECTURE.md: placement model): a slow
+        // client may not have acked at +50 ms. Re-read until the size
+        // matches the target or stops changing, up to 3 reads, then
+        // settle with the last observation. Superseded placements still
+        // cancel the pending read via _cancelPendingFor.
         let attempts = 0;
         let lastSize = null;
         const readBack = () => {

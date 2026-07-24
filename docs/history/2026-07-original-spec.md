@@ -1,3 +1,7 @@
+> **Historical document** — the original pre-implementation design draft, kept
+> for the record. The implementation has evolved; see `docs/ARCHITECTURE.md`
+> for the current state.
+
 # Spec: "Rectangle for GNOME" — Keyboard-Driven Window Snapping Extension
 
 **Status:** Draft v1
