@@ -46,3 +46,9 @@ or a real session. Host verified: GNOME Shell 46 / Ubuntu 24.04.
 - [ ] drag-snap-mode = Modifier-only: Ctrl gates zones AND pair; releasing Ctrl mid-drag clears the pair preview
 - [ ] Esc during drag while the pair preview is visible: no snap, both windows unchanged
 - [ ] Two monitors: dropping on a window on the other monitor tiles within that monitor's work area
+- [ ] Footprint split: with left/right halves in place, drop a third window onto the middle of one half — that half splits into stacked quarters; the other half untouched
+- [ ] Drop position picks the end: drop high in the half → new window on top; drop low → bottom
+- [ ] Ctrl during a footprint drop (Always mode): new window gets ⅔ of the footprint
+- [ ] Drop onto a snapped quarter: splits it side-by-side into eighths (recursion)
+- [ ] After a shell restart, drop onto a keyboard-snapped half: still splits (stateless geometric match)
+- [ ] Free-floating target: still pairs as whole-screen halves

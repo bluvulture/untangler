@@ -3,7 +3,7 @@
 // passed into the constructor (spec §2 purity boundary).
 import {
     Action, rectForAction, cycleLength, centerRect, mapRectToWorkArea,
-    rectsEqual, zoneRect, pairRects,
+    rectsEqual, zoneRect,
 } from './geometry.js';
 import { CycleTracker } from './cycle.js';
 
@@ -79,11 +79,12 @@ export class ActionDispatcher {
         this._applyTracked(win, this._ensureRecord(win, frame), rect);
     }
 
-    // Pair-tile drop (pair-tile spec §5): arrange the dragged window A and
-    // the drop target B side by side. Both get restore records, cycle
-    // resets, and settle tracking; B is raised so the result is visible
-    // even if a third window covered its new area. A keeps focus.
-    applyPairTile(winA, winB, workArea, side, variant) {
+    // Pair drop (pair spec §5, footprint-split spec §4): place the dragged
+    // window A and drop target B at the rects the caller previewed. Both
+    // get restore records, cycle resets, and settle tracking; B is raised
+    // so the result is visible even if a third window covered its new
+    // area. A keeps focus.
+    applyPairRects(winA, winB, aRect, bRect) {
         if (!winA || !winB)
             return;
         if (!this._snappable(winA) || !this._snappable(winB))
@@ -94,12 +95,22 @@ export class ActionDispatcher {
         const frameB = this._mover.frameRect(winB);
         this._freshRecord(winA, idA, frameA);
         this._freshRecord(winB, idB, frameB);
-        const { a, b } = pairRects(workArea, side, variant, this._gaps());
         this._cycles.reset(idA);
         this._cycles.reset(idB);
-        this._applyTracked(winA, this._ensureRecord(winA, frameA), a);
-        this._applyTracked(winB, this._ensureRecord(winB, frameB), b);
+        this._applyTracked(winA, this._ensureRecord(winA, frameA), aRect);
+        this._applyTracked(winB, this._ensureRecord(winB, frameB), bRect);
         this._mover.raise(winB);
+    }
+
+    // Read-only: the rect we placed `win` at, if it is still exactly
+    // there (footprint-split spec §2.1). Used by drag-snap to decide
+    // whether a pair target sits in a snapped footprint.
+    trackedRect(win, frame) {
+        const record = this._records.get(win);
+        if (record?.lastApplied && !record.settling &&
+            rectsEqual(frame, record.lastApplied, MANUAL_CHANGE_TOLERANCE))
+            return record.lastApplied;
+        return null;
     }
 
     _gaps() {

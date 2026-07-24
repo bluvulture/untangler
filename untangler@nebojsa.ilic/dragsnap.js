@@ -10,6 +10,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {
     resolveZone, zoneRect, rectsEqual,
     pickPairSide, pairRects, insetFraction, rectContains,
+    matchSnappedRect, splitFootprint,
 } from './geometry.js';
 import { ZonePreview } from './preview.js';
 
@@ -150,7 +151,7 @@ export class DragSnapManager {
         if (zone)
             this._dispatcher.applyZone(window, zone, workArea);
         else
-            this._dispatcher.applyPairTile(window, pair.window, workArea, pair.side, pair.variant);
+            this._dispatcher.applyPairRects(window, pair.window, pair.rects.a, pair.rects.b);
     }
 
     _stopTracking() {
@@ -175,6 +176,10 @@ export class DragSnapManager {
         const modifierName = this._settings.get_string('drag-snap-modifier');
         const mask = MODIFIER_MASKS[modifierName] ?? MODIFIER_MASKS.ctrl;
         const modifierHeld = (mods & mask) !== 0;
+        const gaps = {
+            outer: this._settings.get_int('outer-gap'),
+            inner: this._settings.get_int('inner-gap'),
+        };
 
         let zone = null;
         let pair = null;
@@ -194,14 +199,15 @@ export class DragSnapManager {
                 });
                 // Zones take precedence; pair-tiling only where no zone hit.
                 if (!zone)
-                    pair = this._findPair(x, y, monitor.index, modifierHeld, mode);
+                    pair = this._findPair(x, y, monitor.index, modifierHeld, mode, workArea, gaps);
             }
         }
 
+        const rectKey = r => `${r.x},${r.y},${r.width},${r.height}`;
         const key = zone && workArea
             ? `${zone.action}:${zone.cycleIndex}:${workArea.x}:${workArea.y}:${workArea.width}:${workArea.height}`
             : pair && workArea
-                ? `pair:${pair.side}:${pair.variant}:${pair.window.get_id()}:${workArea.x}:${workArea.y}:${workArea.width}:${workArea.height}`
+                ? `pair:${pair.window.get_id()}:${rectKey(pair.rects.a)}:${rectKey(pair.rects.b)}`
                 : null;
         if (key === this._zoneKey)
             return;
@@ -216,24 +222,20 @@ export class DragSnapManager {
         }
         if (!this._settings.get_boolean('show-preview'))
             return;
-        const gaps = {
-            outer: this._settings.get_int('outer-gap'),
-            inner: this._settings.get_int('inner-gap'),
-        };
-        if (zone) {
+        if (zone)
             this._preview?.showAt(zoneRect(zone, workArea, gaps));
-        } else {
-            const rects = pairRects(workArea, pair.side, pair.variant, gaps);
-            this._preview?.showPair(rects.a, rects.b);
-        }
+        else
+            this._preview?.showPair(pair.rects.a, pair.rects.b);
         const actor = this._window.get_compositor_private();
         if (actor)
             this._preview?.keepBelow(actor);
     }
 
-    // Pair-tile gating (pair-tile spec §4) + target lookup. Returns
-    // { window, side, variant } or null.
-    _findPair(x, y, monitorIndex, modifierHeld, mode) {
+    // Pair gating (pair spec §4) + target lookup + rect computation
+    // (footprint-split spec). Returns { window, rects: {a, b} } or null;
+    // `a` is the dragged window's rect. Rects are computed here, once per
+    // change, so the preview and the drop are guaranteed identical.
+    _findPair(x, y, monitorIndex, modifierHeld, mode, workArea, gaps) {
         const pairMode = this._settings.get_string('pair-tile-mode');
         if (pairMode === 'off')
             return null;
@@ -245,12 +247,28 @@ export class DragSnapManager {
         const target = this._findPairTarget(x, y, monitorIndex);
         if (!target)
             return null;
+        // The modifier means "variant sizes" only when it is not already
+        // spoken for as an activation key (pair spec §4 table).
+        const variant = modifierHeld && pairMode === 'always' && mode !== 'modifier';
+        // Footprint split (spec §2): B's own fresh tracking first (any
+        // rect we placed counts), else the stateless geometric match;
+        // maximized B never has a footprint. No footprint → whole-area
+        // halves, exactly as before.
+        let footprint = null;
+        if (!(target.window.maximized_horizontally || target.window.maximized_vertically)) {
+            footprint = this._dispatcher.trackedRect(target.window, target.frame) ??
+                matchSnappedRect(target.frame, workArea, gaps);
+        }
+        if (footprint) {
+            return {
+                window: target.window,
+                rects: splitFootprint(footprint, x, y, variant, gaps.inner),
+            };
+        }
+        const side = pickPairSide(x, target.frame);
         return {
             window: target.window,
-            side: pickPairSide(x, target.frame),
-            // The modifier means "variant sizes" only when it is not
-            // already spoken for as an activation key (spec §4 table).
-            variant: modifierHeld && pairMode === 'always' && mode !== 'modifier',
+            rects: pairRects(workArea, side, variant, gaps),
         };
     }
 
