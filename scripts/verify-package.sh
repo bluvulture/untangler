@@ -10,8 +10,9 @@ UUID="untangler@bluvulture"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
-# Tracked files must not reference untracked working docs.
-if git grep -n 'docs/superpowers' -- ':(exclude)docs/superpowers' ':(exclude).gitignore' > "$TMP/stale" 2>/dev/null; then
+# Tracked files must not reference untracked working docs. .gitignore and
+# this script legitimately mention the path itself, so both are excluded.
+if git grep -n 'docs/superpowers' -- ':(exclude)docs/superpowers' ':(exclude).gitignore' ':(exclude)scripts/verify-package.sh' > "$TMP/stale" 2>/dev/null; then
   echo "FAIL: tracked files reference docs/superpowers:" >&2
   cat "$TMP/stale" >&2
   exit 1
