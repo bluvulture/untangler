@@ -5,3 +5,9 @@
   border: 2px solid rgba(53, 132, 228, 0.7);
   border-radius: 12px;
 }
+
+/* Secondary (target window) rect of the pair-tile preview. */
+.untangler-zone-preview-dim {
+  background-color: rgba(53, 132, 228, 0.12);
+  border-color: rgba(53, 132, 228, 0.4);
+}

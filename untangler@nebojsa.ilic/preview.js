@@ -1,4 +1,5 @@
-// preview.js — translucent zone preview overlay (spec 3.6/4.4).
+// preview.js — translucent zone preview overlay (spec 3.6/4.4), plus a
+// dimmer secondary rect for pair-tiling (pair-tile spec §1).
 import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 
@@ -6,40 +7,31 @@ const ANIMATION_MS = 120;
 
 export class ZonePreview {
     constructor() {
+        // Secondary is added first so it stacks below the primary; both sit
+        // under the dragged window's actor (keepBelow() raises the actor
+        // above the primary, which is above the secondary).
+        this._secondary = new St.Widget({
+            style_class: 'untangler-zone-preview untangler-zone-preview-dim',
+            visible: false,
+        });
+        global.window_group.add_child(this._secondary);
         this._widget = new St.Widget({
             style_class: 'untangler-zone-preview',
             visible: false,
         });
-        // In window_group so it sits under the dragged window's actor
-        // (which keepBelow() then raises above us).
         global.window_group.add_child(this._widget);
     }
 
     showAt(rect) {
-        if (!this._widget)
-            return;
-        if (!this._widget.visible) {
-            // First appearance: jump into place and fade in.
-            this._widget.set_position(rect.x, rect.y);
-            this._widget.set_size(rect.width, rect.height);
-            this._widget.opacity = 0;
-            this._widget.show();
-            this._widget.ease({
-                opacity: 255,
-                duration: ANIMATION_MS,
-                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-            });
-            return;
-        }
-        // Zone change: glide to the new rect (the Rectangle "fluid" feel).
-        this._widget.ease({
-            x: rect.x,
-            y: rect.y,
-            width: rect.width,
-            height: rect.height,
-            duration: ANIMATION_MS,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-        });
+        this._hideWidget(this._secondary);
+        this._showWidget(this._widget, rect);
+    }
+
+    // Pair-tile preview: the dragged window's destination in the normal
+    // style, the target window's destination dimmed.
+    showPair(aRect, bRect) {
+        this._showWidget(this._widget, aRect);
+        this._showWidget(this._secondary, bRect);
     }
 
     keepBelow(windowActor) {
@@ -49,15 +41,49 @@ export class ZonePreview {
     }
 
     hide() {
-        if (this._widget) {
-            this._widget.remove_all_transitions();
-            this._widget.hide();
-        }
+        this._hideWidget(this._widget);
+        this._hideWidget(this._secondary);
     }
 
     destroy() {
-        // EGO requirement: actor must not outlive disable().
+        // EGO requirement: actors must not outlive disable().
         this._widget?.destroy();
         this._widget = null;
+        this._secondary?.destroy();
+        this._secondary = null;
+    }
+
+    _showWidget(widget, rect) {
+        if (!widget)
+            return;
+        if (!widget.visible) {
+            // First appearance: jump into place and fade in.
+            widget.set_position(rect.x, rect.y);
+            widget.set_size(rect.width, rect.height);
+            widget.opacity = 0;
+            widget.show();
+            widget.ease({
+                opacity: 255,
+                duration: ANIMATION_MS,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            });
+            return;
+        }
+        // Target change: glide to the new rect.
+        widget.ease({
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+            duration: ANIMATION_MS,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
+    }
+
+    _hideWidget(widget) {
+        if (widget) {
+            widget.remove_all_transitions();
+            widget.hide();
+        }
     }
 }

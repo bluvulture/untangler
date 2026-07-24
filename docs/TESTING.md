@@ -33,3 +33,16 @@ or a real session. Host verified: GNOME Shell 46 / Ubuntu 24.04.
       `journalctl /usr/bin/gnome-shell -b | grep -i untangler` — no leaked
       source/actor warnings
 - [ ] After disable: all shortcuts inert, no preview widget, edge-tiling restored
+
+## Pair tiling
+- [ ] Drop A onto the middle of B: both become left/right halves; A on the side of B where dropped; preview showed both rects (B's dimmer)
+- [ ] Same drop with Ctrl held: A two-thirds, B one-third
+- [ ] Drop near B's edge (outside its central 50%): plain move, no pair
+- [ ] Pointer in an edge band while over B: edge zone wins, single preview
+- [ ] B maximized: pair-tile unmaximizes and tiles it
+- [ ] B non-resizable: plain move (no pair preview)
+- [ ] Restore on B returns its pre-pair geometry; Restore on A returns its drop-time frame
+- [ ] pair-tile-mode = With modifier: pair only while Ctrl held (halves only, no ⅔ variant)
+- [ ] drag-snap-mode = Modifier-only: Ctrl gates zones AND pair; releasing Ctrl mid-drag clears the pair preview
+- [ ] Esc during drag while the pair preview is visible: no snap, both windows unchanged
+- [ ] Two monitors: dropping on a window on the other monitor tiles within that monitor's work area

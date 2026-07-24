@@ -23,7 +23,7 @@ Pair-tiling is considered on each poll tick only when ALL hold:
 4. Dragged window A `allows_resize()`.
 5. An eligible target B exists under the pointer.
 
-**Eligible B:** the topmost window, in stacking order, satisfying all of: not A; `get_window_type() === Meta.WindowType.NORMAL`; not minimized; not fullscreen; on the pointer's monitor; `allows_resize()`; and the pointer is inside the **central region** of B's frame rect — the frame inset by 25% of its width on the left/right and 25% of its height on the top/bottom. The central-region rule keeps casual stacking (dropping near B's edges) a plain move; only a deliberate drop onto B's middle pair-tiles.
+**Eligible B:** the topmost non-minimized NORMAL window (in stacking order, excluding A) whose frame contains the pointer — i.e. the window the user visually drops onto. If that window is fullscreen, on another monitor, or not resizable, there is **no pair** (windows beneath it are never considered — pairing with an occluded window would be confusing). Otherwise B pairs only if the pointer is inside its **central region** — the frame inset by 25% of its width on the left/right and 25% of its height on the top/bottom. The central-region rule keeps casual stacking (dropping near B's edges) a plain move; only a deliberate drop onto B's middle pair-tiles.
 
 If any condition fails → plain move, exactly as today.
 

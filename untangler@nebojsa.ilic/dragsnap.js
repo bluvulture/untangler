@@ -7,10 +7,14 @@ import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import { resolveZone, zoneRect, rectsEqual } from './geometry.js';
+import {
+    resolveZone, zoneRect, rectsEqual,
+    pickPairSide, pairRects, insetFraction, rectContains,
+} from './geometry.js';
 import { ZonePreview } from './preview.js';
 
 const POLL_INTERVAL_MS = 16; // ~60 Hz; the source exists only during a drag
+const PAIR_CENTRAL_INSET = 0.25; // pair-tile hit region: central 50% × 50%
 
 const MODIFIER_MASKS = {
     ctrl: Clutter.ModifierType.CONTROL_MASK,
@@ -33,6 +37,7 @@ export class DragSnapManager {
         this._window = null;
         this._startFrame = null;
         this._zone = null;
+        this._pair = null;
         this._zoneWorkArea = null;
         this._zoneKey = null;
     }
@@ -131,17 +136,21 @@ export class DragSnapManager {
         if (op !== Meta.GrabOp.MOVING || window !== this._window)
             return;
         const zone = this._zone;
+        const pair = this._pair;
         const workArea = this._zoneWorkArea;
         const startFrame = this._startFrame;
         this._stopTracking();
-        if (!zone || !workArea)
+        if ((!zone && !pair) || !workArea)
             return;
         // Esc-cancel heuristic: grab-op-end doesn't report cancellation,
         // but Mutter restores the pre-grab frame on cancel. If the frame is
         // back at its starting geometry, treat it as cancelled.
         if (startFrame && rectsEqual(this._mover.frameRect(window), startFrame, 1))
             return;
-        this._dispatcher.applyZone(window, zone, workArea);
+        if (zone)
+            this._dispatcher.applyZone(window, zone, workArea);
+        else
+            this._dispatcher.applyPairTile(window, pair.window, workArea, pair.side, pair.variant);
     }
 
     _stopTracking() {
@@ -152,6 +161,7 @@ export class DragSnapManager {
         this._window = null;
         this._startFrame = null;
         this._zone = null;
+        this._pair = null;
         this._zoneWorkArea = null;
         this._zoneKey = null;
         this._preview?.hide();
@@ -167,10 +177,11 @@ export class DragSnapManager {
         const modifierHeld = (mods & mask) !== 0;
 
         let zone = null;
+        let pair = null;
         let workArea = null;
-        // Modifier-only mode: zones exist only while the modifier is held
-        // (zero-conflict with native tiling); the modifier is then the
-        // activation key, so variant sizes are unavailable.
+        // Modifier-only mode: zones and pair-tiling exist only while the
+        // modifier is held (zero-conflict with native tiling); the modifier
+        // is then the activation key, so variant sizes are unavailable.
         if (mode !== 'modifier' || modifierHeld) {
             const monitor = Main.layoutManager.monitors.find(m =>
                 x >= m.x && x < m.x + m.width && y >= m.y && y < m.y + m.height);
@@ -181,19 +192,25 @@ export class DragSnapManager {
                     bandPx: this._settings.get_int('edge-band-px'),
                     variant: mode !== 'modifier' && modifierHeld,
                 });
+                // Zones take precedence; pair-tiling only where no zone hit.
+                if (!zone)
+                    pair = this._findPair(x, y, monitor.index, modifierHeld, mode);
             }
         }
 
         const key = zone && workArea
             ? `${zone.action}:${zone.cycleIndex}:${workArea.x}:${workArea.y}:${workArea.width}:${workArea.height}`
-            : null;
+            : pair && workArea
+                ? `pair:${pair.side}:${pair.variant}:${pair.window.get_id()}:${workArea.x}:${workArea.y}:${workArea.width}:${workArea.height}`
+                : null;
         if (key === this._zoneKey)
             return;
         this._zoneKey = key;
         this._zone = zone;
+        this._pair = pair;
         this._zoneWorkArea = workArea;
 
-        if (!zone) {
+        if (!zone && !pair) {
             this._preview?.hide();
             return;
         }
@@ -203,9 +220,64 @@ export class DragSnapManager {
             outer: this._settings.get_int('outer-gap'),
             inner: this._settings.get_int('inner-gap'),
         };
-        this._preview?.showAt(zoneRect(zone, workArea, gaps));
+        if (zone) {
+            this._preview?.showAt(zoneRect(zone, workArea, gaps));
+        } else {
+            const rects = pairRects(workArea, pair.side, pair.variant, gaps);
+            this._preview?.showPair(rects.a, rects.b);
+        }
         const actor = this._window.get_compositor_private();
         if (actor)
             this._preview?.keepBelow(actor);
+    }
+
+    // Pair-tile gating (pair-tile spec §4) + target lookup. Returns
+    // { window, side, variant } or null.
+    _findPair(x, y, monitorIndex, modifierHeld, mode) {
+        const pairMode = this._settings.get_string('pair-tile-mode');
+        if (pairMode === 'off')
+            return null;
+        if (pairMode === 'modifier' && !modifierHeld)
+            return null;
+        if (!this._window.allows_resize())
+            return null;
+        const target = this._findPairTarget(x, y, monitorIndex);
+        if (!target)
+            return null;
+        return {
+            window: target.window,
+            side: pickPairSide(x, target.frame),
+            // The modifier means "variant sizes" only when it is not
+            // already spoken for as an activation key (spec §4 table).
+            variant: modifierHeld && pairMode === 'always' && mode !== 'modifier',
+        };
+    }
+
+    // The visible window under the pointer decides: pair with it if the
+    // pointer is in its central region and it is eligible — otherwise no
+    // pair at all. Windows beneath the one the user sees are never
+    // targets (pair-tile spec §2).
+    _findPairTarget(x, y, monitorIndex) {
+        const windows = global.display.sort_windows_by_stacking(
+            global.workspace_manager.get_active_workspace().list_windows());
+        for (let i = windows.length - 1; i >= 0; i--) {
+            const win = windows[i];
+            if (win === this._window || win.minimized)
+                continue;
+            if (win.get_window_type() !== Meta.WindowType.NORMAL)
+                continue;
+            const r = win.get_frame_rect();
+            const frame = { x: r.x, y: r.y, width: r.width, height: r.height };
+            if (!rectContains(frame, x, y))
+                continue;
+            if (win.is_fullscreen() || win.get_monitor() !== monitorIndex ||
+                !win.allows_resize())
+                return null;
+            if (!rectContains(
+                insetFraction(frame, PAIR_CENTRAL_INSET, PAIR_CENTRAL_INSET), x, y))
+                return null;
+            return { window: win, frame };
+        }
+        return null;
     }
 }
