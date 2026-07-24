@@ -6,7 +6,7 @@ import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';
 
-import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 // Must stay in sync with KEYBINDINGS in keybindings.js (which we cannot
 // import here — it pulls in Shell UI modules).
@@ -32,6 +32,9 @@ const SHORTCUT_ROWS = [
 
 export default class UntanglerPrefs extends ExtensionPreferences {
     fillPreferencesWindow(window) {
+        // A window/schema change since the cache was built (or a prior
+        // capture dialog) must not leave stale conflict data behind.
+        systemShortcutsCache = null;
         const settings = this.getSettings();
         window.add(buildShortcutsPage(settings));
         window.add(buildBehaviorPage(settings));
@@ -43,49 +46,69 @@ export default class UntanglerPrefs extends ExtensionPreferences {
 
 function buildShortcutsPage(settings) {
     const page = new Adw.PreferencesPage({
-        title: 'Shortcuts',
+        title: _('Shortcuts'),
         icon_name: 'input-keyboard-symbolic',
     });
     const group = new Adw.PreferencesGroup({
-        description: 'Click a row, then press the new shortcut. BackSpace clears, Esc cancels.',
+        description: _('Click a row, then press the new shortcut. BackSpace clears, Esc cancels.'),
     });
-    for (const [key, label] of SHORTCUT_ROWS)
-        group.add(buildShortcutRow(settings, key, label));
+    const syncs = [];
+    for (const [key, label] of SHORTCUT_ROWS) {
+        const { row, sync } = buildShortcutRow(settings, key, label);
+        group.add(row);
+        syncs.push(sync);
+    }
+    // A change to ANY snap key can create or clear a duplicate warning on
+    // every OTHER row, so re-sync the whole page whenever one changes.
+    settings.connect('changed', (_settings, key) => {
+        if (key.startsWith('snap-'))
+            syncs.forEach(s => s());
+    });
     page.add(group);
     return page;
 }
 
 function buildShortcutRow(settings, key, title) {
-    const row = new Adw.ActionRow({ title, activatable: true });
+    const row = new Adw.ActionRow({ title: _(title), activatable: true });
     const shortcutLabel = new Gtk.ShortcutLabel({
-        disabled_text: 'Disabled',
+        disabled_text: _('Disabled'),
         valign: Gtk.Align.CENTER,
     });
     row.add_suffix(shortcutLabel);
     const sync = () => {
         const accel = settings.get_strv(key)[0] ?? '';
         shortcutLabel.accelerator = accel;
-        // Warn inline about collisions with GNOME's own shortcuts.
-        row.subtitle = conflictWarning(accel);
+        // Warn inline about collisions with Untangler's own shortcuts first
+        // (they're more likely to be a mistake), then GNOME's.
+        const duplicate = untanglerDuplicate(settings, key, accel);
+        if (duplicate)
+            row.subtitle = _('⚠ Also assigned to “%s” in Untangler').replace('%s', duplicate);
+        else
+            row.subtitle = conflictWarning(accel);
     };
     settings.connect(`changed::${key}`, sync);
     sync();
     row.connect('activated', () => openCaptureDialog(row, settings, key));
-    return row;
+    return { row, sync };
 }
 
 function openCaptureDialog(row, settings, key) {
     const dialog = new Adw.Window({
         modal: true,
         transient_for: row.get_root(),
-        title: 'Set Shortcut',
+        title: _('Set Shortcut'),
         default_width: 380,
         default_height: 200,
         content: new Adw.StatusPage({
-            title: 'Press a shortcut',
-            description: 'Press BackSpace to clear, Esc to cancel',
+            title: _('Press a shortcut'),
+            description: _('Press BackSpace to clear, Esc to cancel'),
             icon_name: 'input-keyboard-symbolic',
         }),
+    });
+    // The system-shortcut cache may now be stale once this dialog closes
+    // (e.g. a capture that happened to match/unmatch a GNOME binding).
+    dialog.connect('close-request', () => {
+        systemShortcutsCache = null;
     });
     const controller = new Gtk.EventControllerKey();
     controller.connect('key-pressed', (_controller, keyval, _keycode, state) => {
@@ -142,24 +165,40 @@ function conflictWarning(accel) {
     if (!accel)
         return '';
     const hit = systemShortcuts().get(normalizeAccel(accel));
-    return hit ? `⚠ Conflicts with GNOME shortcut “${hit}”` : '';
+    return hit ? _('⚠ Conflicts with GNOME shortcut “%s”').replace('%s', hit) : '';
+}
+
+// --- Conflict detection against Untangler's own shortcuts ---
+
+function untanglerDuplicate(settings, ownKey, accel) {
+    if (!accel)
+        return null;
+    const normalized = normalizeAccel(accel);
+    for (const [key, label] of SHORTCUT_ROWS) {
+        if (key === ownKey)
+            continue;
+        const other = settings.get_strv(key)[0];
+        if (other && normalizeAccel(other) === normalized)
+            return label;
+    }
+    return null;
 }
 
 // --- Behavior page ---
 
 function buildBehaviorPage(settings) {
     const page = new Adw.PreferencesPage({
-        title: 'Behavior',
+        title: _('Behavior'),
         icon_name: 'preferences-system-symbolic',
     });
-    const gaps = new Adw.PreferencesGroup({ title: 'Gaps' });
-    gaps.add(spinRow(settings, 'outer-gap', 'Outer gap',
-        'Pixels between snapped windows and the screen edge', 0, 128));
-    gaps.add(spinRow(settings, 'inner-gap', 'Inner gap',
-        'Pixels between adjacent snapped windows', 0, 128));
-    const cycling = new Adw.PreferencesGroup({ title: 'Cycling' });
+    const gaps = new Adw.PreferencesGroup({ title: _('Gaps') });
+    gaps.add(spinRow(settings, 'outer-gap', _('Outer gap'),
+        _('Pixels between snapped windows and the screen edge'), 0, 128));
+    gaps.add(spinRow(settings, 'inner-gap', _('Inner gap'),
+        _('Pixels between adjacent snapped windows'), 0, 128));
+    const cycling = new Adw.PreferencesGroup({ title: _('Cycling') });
     cycling.add(switchRow(settings, 'cycle-sizes-enabled',
-        'Cycle sizes on repeated press', 'Left Half → Two Thirds → Third'));
+        _('Cycle sizes on repeated press'), _('Left Half → Two Thirds → Third')));
     page.add(gaps);
     page.add(cycling);
     return page;
@@ -169,26 +208,38 @@ function buildBehaviorPage(settings) {
 
 function buildDragPage(settings) {
     const page = new Adw.PreferencesPage({
-        title: 'Drag Snapping',
+        title: _('Drag Snapping'),
         icon_name: 'input-mouse-symbolic',
     });
     const group = new Adw.PreferencesGroup();
-    group.add(comboRow(settings, 'drag-snap-mode', 'Drag snapping',
-        'Replace disables GNOME’s built-in edge tiling while the extension is enabled',
+    group.add(comboRow(settings, 'drag-snap-mode', _('Drag snapping'),
+        _('Replace disables GNOME’s built-in edge tiling while the extension is enabled'),
         ['off', 'replace', 'modifier'],
-        ['Off', 'Replace GNOME’s edge tiling', 'Modifier-only']));
-    group.add(comboRow(settings, 'drag-snap-modifier', 'Modifier key',
-        'Hold while dragging for two-thirds/third variants; in Modifier-only mode this activates the zones',
+        [_('Off'), _('Replace GNOME’s edge tiling'), _('Modifier-only')]));
+    group.add(comboRow(settings, 'drag-snap-modifier', _('Modifier key'),
+        _('Hold while dragging for two-thirds/third variants; in Modifier-only mode this activates the zones'),
         ['ctrl', 'alt', 'shift', 'super'],
-        ['Ctrl', 'Alt', 'Shift', 'Super']));
-    group.add(comboRow(settings, 'pair-tile-mode', 'Pair tiling on drop',
-        'Dropping a window onto the middle of another window tiles the two side by side',
+        [_('Ctrl'), _('Alt'), _('Shift'), _('Super')]));
+    const pairRow = comboRow(settings, 'pair-tile-mode', _('Pair tiling on drop'),
+        '',
         ['off', 'modifier', 'always'],
-        ['Off', 'With modifier held', 'Always']));
-    group.add(spinRow(settings, 'edge-band-px', 'Edge band size',
-        'Zone trigger depth from the screen edges, in pixels', 4, 64));
-    group.add(switchRow(settings, 'show-preview', 'Show zone preview',
-        'Translucent overlay of the target zone while dragging'));
+        [_('Off'), _('With modifier held'), _('Always')]);
+    group.add(pairRow);
+    // The pair-tiling drop gesture only exists while drag snapping itself
+    // is enabled; grey the row out (and explain why) whenever it's off.
+    const syncPairRow = () => {
+        const active = settings.get_string('drag-snap-mode') !== 'off';
+        pairRow.sensitive = active;
+        pairRow.subtitle = active
+            ? _('Dropping a window onto the middle of another window tiles the two side by side')
+            : _('Requires drag snapping to be enabled');
+    };
+    settings.connect('changed::drag-snap-mode', syncPairRow);
+    syncPairRow();
+    group.add(spinRow(settings, 'edge-band-px', _('Edge band size'),
+        _('Zone trigger depth from the screen edges, in pixels'), 4, 64));
+    group.add(switchRow(settings, 'show-preview', _('Show zone preview'),
+        _('Translucent overlay of the target zone while dragging')));
     page.add(group);
     return page;
 }
