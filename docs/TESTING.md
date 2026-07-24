@@ -17,6 +17,7 @@ or a real session. Host verified: GNOME Shell 46 / Ubuntu 24.04.
 - [ ] Maximized window: any snap unmaximizes first, no race/flicker
 - [ ] Maximize shortcut on a can't-maximize window: no-op
 - [ ] Two monitors: Next/Previous Display preserves relative size and wraps; work areas respected at different scales
+- [ ] Rapid Maximize→Restore (and Maximize→snap) on Wayland: Restore still returns the pre-maximize frame (validates the synchronous maximize-flag assumption)
 
 ## Drag snapping
 - [ ] Replace mode: `gsettings get org.gnome.mutter edge-tiling` is false while enabled, restored on disable
@@ -30,12 +31,13 @@ or a real session. Host verified: GNOME Shell 46 / Ubuntu 24.04.
 - [ ] Drag across monitor boundary: preview jumps to the other monitor's work area
 - [ ] Fixed-size window: dragging shows no zone/pair previews at all
 - [ ] Restore after a drag-snap returns pre-drag size
-- [ ] Switch drag snapping to Off DURING a drag: preview vanishes, drop is a plain move
+- [ ] Switch drag snapping to Off DURING a drag: preview vanishes, drop is a plain move (native edge tiling may claim edge drops again immediately)
 - [ ] Change gaps during a drag: the preview reflects the new gaps within a tick
 - [ ] Toggle "show zone preview" off during a drag: preview hides immediately
 - [ ] While Replace mode is active, run `gsettings set org.gnome.mutter edge-tiling true` externally: Untangler logs "adopting" and stops claiming the setting; disable no longer overwrites it
 - [ ] Slow/heavy client (e.g. LibreOffice): snap lands correctly even when the first read-back sees stale geometry (bounded retry)
 - [ ] Pair drop while closing the target window: no half-applied layout (either full pair or plain move)
+- [ ] Drop a window at exactly its pre-drag position inside an edge zone: reads as cancel (known Esc-heuristic limitation), no snap
 
 ## Lifecycle
 - [ ] enable → use → disable → re-enable ×10, then check

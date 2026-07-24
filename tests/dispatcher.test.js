@@ -263,3 +263,36 @@ test('record survives while the window stays maximized', () => {
   dispatcher.run(Action.RESTORE); mover.settle();
   assert.deepEqual(lastApply(mover)[2], before);                 // still restores
 });
+
+test('pair drop aborts wholly when the dragged window is gone', () => {
+  const { mover, win: winA, dispatcher } = setup();
+  const winB = new FakeWindow();
+  mover.closeWindow(winA);
+  dispatcher.applyPairRects(winA, winB,
+    rectForAction(WA, Action.LEFT_HALF, 0), rectForAction(WA, Action.RIGHT_HALF, 0));
+  assert.equal(mover.calls.filter(c => c[0] === 'apply').length, 0);
+});
+
+test('pair drop aborts wholly when the dragged rect is sub-minimum', () => {
+  const { mover, win: winA, dispatcher } = setup();
+  const winB = new FakeWindow();
+  dispatcher.applyPairRects(winA, winB,
+    { x: 0, y: 0, width: 10, height: 10 }, rectForAction(WA, Action.RIGHT_HALF, 0));
+  assert.equal(mover.calls.filter(c => c[0] === 'apply').length, 0);
+});
+
+test('failed pair drop preserves the target prior restore point', () => {
+  const { mover, win: winA, dispatcher } = setup();
+  const winB = new FakeWindow({ frame: { x: 900, y: 50, width: 700, height: 500 } });
+  const beforeB = { ...winB.frame };
+  mover.setFocus(winB);
+  dispatcher.run(Action.LEFT_HALF); mover.settle();
+  mover.setFocus(winA);
+  winA.failApply = true;
+  dispatcher.applyPairRects(winA, winB,
+    rectForAction(WA, Action.RIGHT_HALF, 0), rectForAction(WA, Action.LEFT_HALF, 1));
+  mover.settle();
+  mover.setFocus(winB);
+  dispatcher.run(Action.RESTORE); mover.settle();
+  assert.deepEqual(lastApply(mover)[2], beforeB);
+});

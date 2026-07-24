@@ -90,8 +90,10 @@ export class ActionDispatcher {
         if (!winA || !winB)
             return;
         if (aRect.width < MIN_PLACEMENT_PX || aRect.height < MIN_PLACEMENT_PX ||
-            bRect.width < MIN_PLACEMENT_PX || bRect.height < MIN_PLACEMENT_PX)
+            bRect.width < MIN_PLACEMENT_PX || bRect.height < MIN_PLACEMENT_PX) {
+            logWarn('pair drop refused: sub-minimum target rect');
             return;
+        }
         let frameA;
         let frameB;
         try {
@@ -107,13 +109,18 @@ export class ActionDispatcher {
         this._freshRecord(winB, frameB);
         this._cycles.reset(winA);
         this._cycles.reset(winB);
+        const priorB = this._records.get(winB);
+        const priorBSnapshot = priorB ? { ...priorB } : null;
         const recordB = this._ensureRecord(winB, frameB);
         try {
             this._applyTracked(winB, recordB, bRect);
             this._applyTracked(winA, this._ensureRecord(winA, frameA), aRect);
         } catch (error) {
             logError('pair drop failed mid-placement; rolling back the target', error);
-            this._records.delete(winB);
+            if (priorBSnapshot)
+                this._records.set(winB, priorBSnapshot);
+            else
+                this._records.delete(winB);
             try {
                 this._mover.apply(winB, frameB);
             } catch {
@@ -165,6 +172,7 @@ export class ActionDispatcher {
     // unmaximize can't be caught by a signal at the moment it happens —
     // we key on expectMaximized and check it lazily, at the next user
     // action, same as the manual-move case above.
+    // Validated live by the TESTING.md row "rapid Maximize→Restore on Wayland".
     _freshRecord(win, frame) {
         let record = this._records.get(win);
         const manualChange = record?.lastApplied && !record.settling &&
@@ -191,8 +199,10 @@ export class ActionDispatcher {
     // (min-size clamp → read-back re-centering), and treating that as a
     // manual move would wrongly reset the cycle and drop restore geometry.
     _applyTracked(win, record, rect, resize = true) {
-        if (rect.width < MIN_PLACEMENT_PX || rect.height < MIN_PLACEMENT_PX)
+        if (rect.width < MIN_PLACEMENT_PX || rect.height < MIN_PLACEMENT_PX) {
+            logWarn(`refusing sub-minimum placement ${rect.width}x${rect.height}`);
             return;
+        }
         record.settling = true;
         record.expectMaximized = false;
         record.lastApplied = rect;
@@ -262,9 +272,11 @@ export class ActionDispatcher {
         const toArea = this._mover.workAreaForMonitor(win, target);
         const rect = mapRectToWorkArea(frame, fromArea, toArea);
         const record = this._records.get(win);
-        if (record)
+        if (record) {
             this._applyTracked(win, record, rect); // keeps `original`
-        else if (rect.width >= MIN_PLACEMENT_PX && rect.height >= MIN_PLACEMENT_PX)
+        } else if (rect.width >= MIN_PLACEMENT_PX && rect.height >= MIN_PLACEMENT_PX) {
             this._mover.apply(win, rect);
+        } else
+            logWarn('refusing sub-minimum monitor-move placement');
     }
 }
