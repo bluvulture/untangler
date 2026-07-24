@@ -197,7 +197,7 @@ export function resolveZone(pointerX, pointerY, workArea, options = {}) {
     const nearBottom = py >= wa.y + wa.height - bandPx;
 
     if (nearTop) {
-        // Top edge, centre 50 % → maximize (native-compatible).
+        // Top edge, centre 50 % → maximize (center 50 % of the top edge).
         if (px >= wa.x + wa.width * 0.25 && px < wa.x + wa.width * 0.75)
             return { action: Action.MAXIMIZE, cycleIndex: 0 };
         return null;

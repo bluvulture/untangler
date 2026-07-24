@@ -107,7 +107,8 @@ imposed. Recovery command if anything ever goes wrong:
 2. Zones always take precedence over pair targets.
 3. Pair targets use the central 50 % of the visible window under the pointer.
 4. The modifier means "variant sizes" only when it is not already an
-   activation key (Modifier-only drag mode, or pair mode "With modifier").
+   activation key (Modifier-only drag mode, or pair mode "With modifier")
+   (zone variants depend only on the drag mode).
 5. Footprints split along their longer axis.
 6. Stateless footprint recognition knows every canonical snap rect,
    including cycled sizes like two-thirds; fragments produced by footprint

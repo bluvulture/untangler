@@ -19,8 +19,8 @@ table). Feedback and bug reports are very welcome.
 - 17 snap actions on global shortcuts: halves, quarters, thirds, maximize,
   almost-maximize (90 %), center, restore, move to next/previous display
 - Repeated presses cycle sizes: ½ → ⅔ → ⅓ (halves), ¼ → ⅙ (quarters)
-- Restore returns a window to where it was before Untangler touched it
-  (session-original; re-maximizes if it was maximized)
+- Restore returns a window to where it was before its current snap chain
+  began (session-original; re-maximizes if it was maximized)
 - Outer and inner gaps, applied consistently to every snap
 - Drag snap zones beyond GNOME's built-ins: edge bands for halves and
   quarters, bottom-edge thirds, corner hot zones — with a live translucent
@@ -58,8 +58,7 @@ From a packaged release (recommended):
 Preferences: `gnome-extensions prefs untangler@bluvulture` (or via the
 Extensions app).
 
-**Update:** install the newer zip over the old one (same command), then
-reload the shell. **Uninstall:** `gnome-extensions uninstall
+**Update:** `gnome-extensions install --force untangler@bluvulture.shell-extension.zip`, then reload the shell. **Uninstall:** `gnome-extensions uninstall
 untangler@bluvulture`.
 
 ## Default shortcuts
@@ -103,7 +102,7 @@ places a window smaller than 16 px per side.
 |---|---|---|---|---|
 | Off | any | never | never | — |
 | Replace | Always | always | pointer over a window's center | variant sizes (⅔/⅓, sixths) |
-| Replace | With modifier | always | only while modifier held | pair activation (no variants) |
+| Replace | With modifier | always | only while modifier held | pair activation; zones still get variant sizes |
 | Replace | Off | always | never | variant sizes (zones only) |
 | Modifier-only | any | only while modifier held | only while modifier held (never if pair tiling is Off) | activation (no variants) |
 
@@ -128,13 +127,12 @@ manual position.
   lands exactly at the window's pre-drag position reads as a cancel, and a
   cancelled drag that Mutter restores late could in principle read as a
   drop. In practice both are rare.
-- The top screen edge outside its center 50 % deliberately has no drop
-  target (native GNOME behaves the same way there for maximize).
+- The top screen edge outside its center 50 % deliberately has no drop target.
 - Apps with large minimum sizes can't shrink below them: the window is
   re-centered inside the target zone instead.
 - A resizable window that cannot maximize still shows a maximize-zone
   preview; the drop does nothing.
-- Odd footprint fragments (e.g. a ⅔ region from a modifier split) are
+- Odd footprint fragments (e.g. the ⅔ piece of an already-split half) are
   recognized as splittable only until the shell restarts.
 
 ## Troubleshooting
