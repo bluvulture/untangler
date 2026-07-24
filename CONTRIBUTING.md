@@ -19,13 +19,16 @@ GNOME Shell caches extension modules per process.
 ## Code rules
 
 - **Purity boundary:** `geometry.js`, `cycle.js`, and `actions.js` must not
-  import `gi://` or `resource:///` — they are unit-tested under Node.
-  Mutter/Shell access lives in `mover.js`, `keybindings.js`, `dragsnap.js`,
-  `preview.js`, `extension.js`; `prefs.js` runs in a separate GTK process.
-- **Coverage honesty:** Node tests cover the pure modules and the dispatcher.
-  `mover.js`, `dragsnap.js`, `preview.js`, `prefs.js`, and `extension.js` are
-  shell-side and are validated by the manual matrix in `docs/TESTING.md` —
-  never present pure-module coverage as whole-extension coverage.
+  import `gi://` or `resource:///`. Mutter/Shell access lives in `mover.js`,
+  `keybindings.js`, `dragsnap.js`, `preview.js`, `extension.js`; `prefs.js`
+  runs in a separate GTK process.
+- **Coverage honesty:** Node tests currently cover the pure modules
+  (`geometry.js`, `cycle.js` — geometry, cycling, zones, pair and footprint
+  math) plus the schema/keybinding sync check. `actions.js` is Node-loadable
+  and fake-based dispatcher tests are planned; `mover.js`, `dragsnap.js`,
+  `preview.js`, `prefs.js`, and `extension.js` are shell-side and are
+  validated by the manual matrix in `docs/TESTING.md` — never present
+  pure-module coverage as whole-extension coverage.
 - Tests first (TDD) for any behavior change; every signal/source/actor
   acquired in `enable()` is released in `disable()` (EGO requirement).
 - Inbound contributions are accepted under GPL-2.0-or-later.
