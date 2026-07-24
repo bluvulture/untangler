@@ -228,3 +228,44 @@ export function zoneRect(zone, workArea, gaps = NO_GAPS) {
 function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
 }
+
+// --- Pair tiling (docs/superpowers/specs/2026-07-24-pair-tile-on-drop-design.md) ---
+
+// Which side the dragged window takes: 'left' iff the pointer is left of
+// the target frame's horizontal center ('right' on the exact center).
+export function pickPairSide(pointerX, targetFrame) {
+    return pointerX < targetFrame.x + targetFrame.width / 2 ? 'left' : 'right';
+}
+
+// The two rects for a pair-tile drop (spec §3). `side` is where the
+// dragged window (a) goes. With `variant` (modifier held), a takes
+// two-thirds and b the remaining third — cycle indices 1 and 2 of the
+// half tables complement exactly, so the pair tiles like keyboard snaps.
+export function pairRects(workArea, side, variant, gaps = NO_GAPS) {
+    const aAction = side === 'left' ? Action.LEFT_HALF : Action.RIGHT_HALF;
+    const bAction = side === 'left' ? Action.RIGHT_HALF : Action.LEFT_HALF;
+    return {
+        a: rectForAction(workArea, aAction, variant ? 1 : 0, gaps),
+        b: rectForAction(workArea, bAction, variant ? 2 : 0, gaps),
+    };
+}
+
+// `rect` inset by the given fraction of its size on each side
+// (0.25, 0.25 → the central 50% × 50%). Used for the pair-tile
+// central-region hit test (spec §2).
+export function insetFraction(rect, fractionX, fractionY) {
+    const dx = Math.round(rect.width * fractionX);
+    const dy = Math.round(rect.height * fractionY);
+    return {
+        x: rect.x + dx,
+        y: rect.y + dy,
+        width: rect.width - 2 * dx,
+        height: rect.height - 2 * dy,
+    };
+}
+
+// Half-open containment: [x, x+width) × [y, y+height).
+export function rectContains(rect, px, py) {
+    return px >= rect.x && px < rect.x + rect.width &&
+        py >= rect.y && py < rect.y + rect.height;
+}
