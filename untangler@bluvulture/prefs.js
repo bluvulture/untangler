@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 // prefs.js — GTK4/Adwaita preferences (spec 4.6). Runs in a separate
 // process: no Shell imports allowed; talks to the extension only via
 // GSettings.

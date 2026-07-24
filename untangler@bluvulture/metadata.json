@@ -1,9 +1,10 @@
 {
   "uuid": "untangler@bluvulture",
   "name": "Untangler",
-  "description": "Rectangle-style keyboard window snapping: 17 shortcut actions with repeated-press size cycling, restore, gaps, multi-monitor throws, and extended drag snap zones with live preview.",
+  "description": "Rectangle-style keyboard window snapping: 17 shortcut actions with repeated-press size cycling, restore, gaps, multi-monitor throws, and extended drag snap zones with live preview. Drop a window onto another to pair-tile them; drop onto a snapped window to split its region.",
   "shell-version": ["46", "47", "48"],
   "settings-schema": "org.gnome.shell.extensions.untangler",
   "gettext-domain": "untangler",
-  "version-name": "1.0"
+  "url": "https://github.com/bluvulture/untangler",
+  "version-name": "0.9.0"
 }

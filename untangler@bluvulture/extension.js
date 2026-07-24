@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 // extension.js — lifecycle only: construct on enable, tear down fully on
 // disable (EGO requirement). All logic lives in the managers.
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 // mover.js — WindowMover: the only file that calls Meta.Window methods.
 // Everything the dispatcher needs from Mutter goes through here (spec 4.7:
 // thin, replaceable Mutter surface).

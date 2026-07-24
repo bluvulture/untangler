@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 // geometry.js — GeometryEngine: pure functions only (spec §2 key principle).
 // MUST NOT import from gi:// or resource:/// — this file runs under plain
 // Node for unit tests and is the extension's Shell-API-free core.

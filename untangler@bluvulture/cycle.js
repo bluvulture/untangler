@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 // cycle.js — CycleTracker (spec 3.2): per-window repeated-press state.
 // Pure JS, no Shell imports — unit-tested under Node.
 //

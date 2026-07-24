@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 // dragsnap.js — DragSnapManager (spec 3.6/4.4): grab-op tracking, 60 Hz
 // pointer polling during a move grab, zone preview, drop handling, and
 // native edge-tiling suppression with crash-safe restore.

@@ -1,6 +1,10 @@
 {
   "name": "untangler",
   "private": true,
+  "license": "GPL-2.0-or-later",
+  "engines": {
+    "node": ">=20"
+  },
   "type": "module",
   "scripts": {
     "test": "node --test",

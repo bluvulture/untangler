@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 // keybindings.js — registers/unregisters all shortcuts (spec 4.2).
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';

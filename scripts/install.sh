@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Dev-install: compile schemas and symlink the extension into the user's
 # extensions dir. Log out/in (Wayland) afterwards, then:
 #   gnome-extensions enable untangler@bluvulture

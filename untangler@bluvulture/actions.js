@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 // actions.js — ActionDispatcher: orchestrates geometry + cycle + mover.
 // No gi:// imports here; all Mutter access goes through the WindowMover
 // passed into the constructor (spec §2 purity boundary).
