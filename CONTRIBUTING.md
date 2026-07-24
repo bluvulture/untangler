@@ -4,8 +4,8 @@
 
 - Node.js ≥ 20 (used only as a development task runner — Untangler is a GJS
   extension and has zero runtime npm dependencies; nothing is published to npm).
-- GNOME Shell 46–48 for manual testing; `glib-compile-schemas` and
-  `gnome-extensions` (from the gnome-shell package) for packaging.
+- GNOME Shell 46–48 for manual testing; `glib-compile-schemas`,
+  `gnome-extensions` (from the gnome-shell package), and `unzip` for packaging.
 
 ```bash
 npm run verify   # tests, syntax checks, schema validation, reproducible-package check
@@ -25,9 +25,9 @@ GNOME Shell caches extension modules per process.
 - **Coverage honesty:** Node tests currently cover the pure modules
   (`geometry.js`, `cycle.js` — geometry, cycling, zones, pair and footprint
   math) plus the schema/keybinding sync check. `actions.js` is Node-loadable
-  and fake-based dispatcher tests are planned; `mover.js`, `dragsnap.js`,
-  `preview.js`, `prefs.js`, and `extension.js` are shell-side and are
-  validated by the manual matrix in `docs/TESTING.md` — never present
+  and fake-based dispatcher tests are planned; `mover.js`, `keybindings.js`,
+  `dragsnap.js`, `preview.js`, `prefs.js`, and `extension.js` are shell-side
+  and are validated by the manual matrix in `docs/TESTING.md` — never present
   pure-module coverage as whole-extension coverage.
 - Tests first (TDD) for any behavior change; every signal/source/actor
   acquired in `enable()` is released in `disable()` (EGO requirement).

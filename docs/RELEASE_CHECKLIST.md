@@ -34,7 +34,12 @@ Esc cancellation; rapid repeated shortcuts; pair target closed mid-drop.
       notes include the commit SHA
 - [ ] Publish the release; verify the zip installs via
       `gnome-extensions install`
-- [ ] For 0.9.0: flip the repository to public
+- [ ] Verify the downloaded release asset against the tag:
+      VERIFY_ZIP=<downloaded zip> npm run verify
+- [ ] For 0.9.0 (pre-public review): decide commit-author identity/history
+      handling while rewrite is still cheap; enable private vulnerability
+      reporting; enable Discussions (or update SUPPORT.md); then flip the
+      repository to public
 
 ## EGO submission (at/after 0.9.0)
 - [ ] Zip passes EGO review guidelines (teardown audit re-run)
@@ -48,3 +53,8 @@ Esc cancellation; rapid repeated shortcuts; pair target closed mid-drop.
 - [ ] CI reproduces and verifies the release artifact
 - [ ] User/contributor/support/security docs published
 - [ ] Release candidate completed an external testing period
+
+## Deferred automation (backlog, deliberate)
+- Coverage reporting with an explicit eligible-file list (after the
+  dispatcher fake harness lands)
+- Documentation link checking in CI (beyond the stale-path grep)

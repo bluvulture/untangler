@@ -15,10 +15,12 @@ command -v glib-compile-schemas > /dev/null || {
   exit 1
 }
 
-if [ -e "$DEST" ] && [ ! -L "$DEST" ] && [ "$FORCE" != "--force" ]; then
-  echo "Refusing to remove $DEST: it exists and is not a symlink" >&2
-  echo "(probably a real packaged install). Re-run with --force to replace it." >&2
-  exit 1
+if [ -e "$DEST" ] && [ "$FORCE" != "--force" ]; then
+  if [ ! -L "$DEST" ] || [ "$(readlink -f "$DEST")" != "$SRC" ]; then
+    echo "Refusing to remove $DEST: not a symlink into this checkout." >&2
+    echo "Re-run with --force to replace it." >&2
+    exit 1
+  fi
 fi
 
 glib-compile-schemas "$SRC/schemas"

@@ -9,7 +9,7 @@
   "scripts": {
     "test": "node --test",
     "check": "for f in 'untangler@bluvulture'/*.js; do node --check \"$f\" || exit 1; done",
-    "verify": "npm test && npm run check && glib-compile-schemas --strict --dry-run 'untangler@bluvulture/schemas/' && bash -n scripts/install.sh scripts/package.sh scripts/verify-package.sh && python3 -m json.tool 'untangler@bluvulture/metadata.json' > /dev/null && bash scripts/verify-package.sh",
+    "verify": "npm test && npm run check && glib-compile-schemas --strict --dry-run 'untangler@bluvulture/schemas/' && bash -n scripts/install.sh scripts/package.sh scripts/verify-package.sh && node -e \"JSON.parse(require('fs').readFileSync('untangler@bluvulture/metadata.json','utf8'))\" && bash scripts/verify-package.sh",
     "package": "bash scripts/package.sh"
   }
 }
