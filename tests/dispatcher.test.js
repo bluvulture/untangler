@@ -139,7 +139,7 @@ test('zone maximize is gated on canMaximize too', () => {
   assert.equal(mover.calls.filter(c => c[0] === 'maximize').length, 0);
 });
 
-test('monitor move maps the fractional rect and resets the cycle', () => {
+test('monitor move maps the fractional rect', () => {
   const WA2 = { x: 1920, y: 0, width: 1920, height: 1080 };
   const { mover, win, dispatcher } = setup({}, {}, { workAreas: [WA, WA2] });
   dispatcher.run(Action.LEFT_HALF); mover.settle();
@@ -148,4 +148,53 @@ test('monitor move maps the fractional rect and resets the cycle', () => {
   const rect = lastApply(mover)[2];
   assert.equal(rect.x, 1920);                                   // left half of monitor 2
   assert.equal(rect.width, 960);
+});
+
+test('restore after a zone drop returns the pre-zone frame', () => {
+  const { mover, win, dispatcher } = setup();
+  const before = { ...win.frame };
+  dispatcher.applyZone(win, { action: Action.LEFT_HALF, cycleIndex: 0 }, WA);
+  mover.settle();
+  dispatcher.run(Action.RESTORE); mover.settle();
+  assert.deepEqual(lastApply(mover)[2], before);
+});
+
+test('restore after the maximize action returns the pre-maximize frame', () => {
+  const { mover, win, dispatcher } = setup();
+  const before = { ...win.frame };
+  dispatcher.run(Action.MAXIMIZE);
+  dispatcher.run(Action.RESTORE); mover.settle();
+  assert.deepEqual(lastApply(mover)[2], before);
+});
+
+test('monitor move keeps the restore original and resets the cycle', () => {
+  const WA2 = { x: 1920, y: 0, width: 1920, height: 1080 };
+  const { mover, win, dispatcher } = setup({}, {}, { workAreas: [WA, WA2] });
+  const before = { ...win.frame };
+  dispatcher.run(Action.LEFT_HALF); mover.settle();
+  dispatcher.run(Action.NEXT_DISPLAY); mover.settle();
+  win.monitor = 1;
+  dispatcher.run(Action.LEFT_HALF); mover.settle();
+  assert.deepEqual(lastApply(mover)[2], rectForAction(WA2, Action.LEFT_HALF, 0));
+  dispatcher.run(Action.RESTORE); mover.settle();
+  assert.deepEqual(lastApply(mover)[2], before);
+});
+
+test('manual move before a zone drop re-baselines restore (purge on zone path)', () => {
+  const { mover, win, dispatcher } = setup();
+  dispatcher.run(Action.LEFT_HALF); mover.settle();
+  win.frame = { x: 500, y: 400, width: 640, height: 480 };
+  const manual = { ...win.frame };
+  dispatcher.applyZone(win, { action: Action.RIGHT_HALF, cycleIndex: 0 }, WA);
+  mover.settle();
+  dispatcher.run(Action.RESTORE); mover.settle();
+  assert.deepEqual(lastApply(mover)[2], manual);
+});
+
+test('sub-minimum monitor-move rects are refused even without a record', () => {
+  const SMALL = { x: 1920, y: 0, width: 100, height: 100 };
+  const { mover, win, dispatcher } = setup(
+    { frame: { x: 0, y: 0, width: 90, height: 1080 } }, {}, { workAreas: [WA, SMALL] });
+  dispatcher.run(Action.NEXT_DISPLAY);
+  assert.equal(mover.calls.filter(c => c[0] === 'apply').length, 0);
 });

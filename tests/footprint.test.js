@@ -95,3 +95,10 @@ test('splitFootprint: horizontal-axis seam with gap is exact', () => {
   assert.equal(a.x, 100);
   assert.equal(b.x + b.width, 1060);
 });
+
+test('variant split seam with gap stays exactly the gap', () => {
+  const fp = { x: 0, y: 0, width: 960, height: 1080 };  // vertical split
+  const { a, b } = splitFootprint(fp, 480, 100, true, 8);
+  assert.equal(b.y - (a.y + a.height), 8);
+  assert.equal(a.height + b.height + 8, 1080);
+});

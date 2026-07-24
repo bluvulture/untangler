@@ -121,12 +121,12 @@ export class DragSnapManager {
             return;
         if (!window || window.get_window_type() !== Meta.WindowType.NORMAL)
             return;
+        this._stopTracking(); // defensive: never leak a stale poll source
         // Fixed-size windows can't take any zone or pair placement — don't
         // track at all, so previews never advertise a no-op drop.
         if (!window.allows_resize() &&
             !(window.maximized_horizontally || window.maximized_vertically))
             return;
-        this._stopTracking(); // defensive: never leak a stale poll source
         this._window = window;
         this._startFrame = this._mover.frameRect(window);
         // Poll the pointer: position-changed under-fires for zone purposes

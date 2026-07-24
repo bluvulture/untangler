@@ -89,6 +89,7 @@ export class FakeMover {
     workAreaForMonitor(_win, index) { return { ...this._workAreas[index] }; }
 
     maximize(win) {
+        this._pending = this._pending.filter(p => p.win !== win);
         this.calls.push(['maximize', win.id]);
         win.maximized = true;
         win.frame = { ...this._workAreas[win.monitor] };

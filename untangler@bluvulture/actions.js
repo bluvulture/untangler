@@ -231,7 +231,7 @@ export class ActionDispatcher {
         const record = this._records.get(win);
         if (record)
             this._applyTracked(win, record, rect); // keeps `original`
-        else
+        else if (rect.width >= MIN_PLACEMENT_PX && rect.height >= MIN_PLACEMENT_PX)
             this._mover.apply(win, rect);
     }
 }
