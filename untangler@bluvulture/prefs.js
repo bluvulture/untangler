@@ -8,33 +8,36 @@ import Gtk from 'gi://Gtk';
 
 import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
+const N_ = s => s;   // extraction marker only; translated at display time
+
 // Must stay in sync with KEYBINDINGS in keybindings.js (which we cannot
 // import here — it pulls in Shell UI modules).
 const SHORTCUT_ROWS = [
-    ['snap-left-half', 'Left half'],
-    ['snap-right-half', 'Right half'],
-    ['snap-top-half', 'Top half'],
-    ['snap-bottom-half', 'Bottom half'],
-    ['snap-top-left-quarter', 'Top-left quarter'],
-    ['snap-top-right-quarter', 'Top-right quarter'],
-    ['snap-bottom-left-quarter', 'Bottom-left quarter'],
-    ['snap-bottom-right-quarter', 'Bottom-right quarter'],
-    ['snap-first-third', 'First third'],
-    ['snap-center-third', 'Center third'],
-    ['snap-last-third', 'Last third'],
-    ['snap-maximize', 'Maximize'],
-    ['snap-almost-maximize', 'Almost maximize'],
-    ['snap-center', 'Center (no resize)'],
-    ['snap-restore', 'Restore'],
-    ['snap-next-display', 'Next display'],
-    ['snap-prev-display', 'Previous display'],
+    ['snap-left-half', N_('Left half')],
+    ['snap-right-half', N_('Right half')],
+    ['snap-top-half', N_('Top half')],
+    ['snap-bottom-half', N_('Bottom half')],
+    ['snap-top-left-quarter', N_('Top-left quarter')],
+    ['snap-top-right-quarter', N_('Top-right quarter')],
+    ['snap-bottom-left-quarter', N_('Bottom-left quarter')],
+    ['snap-bottom-right-quarter', N_('Bottom-right quarter')],
+    ['snap-first-third', N_('First third')],
+    ['snap-center-third', N_('Center third')],
+    ['snap-last-third', N_('Last third')],
+    ['snap-maximize', N_('Maximize')],
+    ['snap-almost-maximize', N_('Almost maximize')],
+    ['snap-center', N_('Center (no resize)')],
+    ['snap-restore', N_('Restore')],
+    ['snap-next-display', N_('Next display')],
+    ['snap-prev-display', N_('Previous display')],
 ];
 
 export default class UntanglerPrefs extends ExtensionPreferences {
     fillPreferencesWindow(window) {
-        // A window/schema change since the cache was built (or a prior
-        // capture dialog) must not leave stale conflict data behind.
-        systemShortcutsCache = null;
+        // GNOME's own keybindings may have been edited (e.g. in GNOME
+        // Settings) since this cache was last built, including while this
+        // window was closed — never show conflict state from a prior window.
+        invalidateSystemShortcuts();
         const settings = this.getSettings();
         window.add(buildShortcutsPage(settings));
         window.add(buildBehaviorPage(settings));
@@ -82,17 +85,24 @@ function buildShortcutRow(settings, key, title) {
         // (they're more likely to be a mistake), then GNOME's.
         const duplicate = untanglerDuplicate(settings, key, accel);
         if (duplicate)
-            row.subtitle = _('⚠ Also assigned to “%s” in Untangler').replace('%s', duplicate);
+            row.subtitle = _('⚠ Also assigned to “%s” in Untangler').replace('%s', _(duplicate));
         else
             row.subtitle = conflictWarning(accel);
     };
-    settings.connect(`changed::${key}`, sync);
+    // Page-level 'changed' listener (below, in buildShortcutsPage) already
+    // re-syncs every row — including this one — on any snap-key change, so
+    // no separate changed::<key> connection is needed here.
     sync();
     row.connect('activated', () => openCaptureDialog(row, settings, key));
     return { row, sync };
 }
 
 function openCaptureDialog(row, settings, key) {
+    // GNOME's own keybindings may have changed concurrently (e.g. the user
+    // has GNOME Settings open in another window) — refresh deterministically
+    // for the row being edited right now, rather than trusting a cache that
+    // may predate this capture.
+    invalidateSystemShortcuts();
     const dialog = new Adw.Window({
         modal: true,
         transient_for: row.get_root(),
@@ -105,10 +115,11 @@ function openCaptureDialog(row, settings, key) {
             icon_name: 'input-keyboard-symbolic',
         }),
     });
-    // The system-shortcut cache may now be stale once this dialog closes
-    // (e.g. a capture that happened to match/unmatch a GNOME binding).
+    // ...and GNOME's keybindings may change again while this dialog is open
+    // (same concurrent-edit scenario), so refresh once more on close too.
     dialog.connect('close-request', () => {
-        systemShortcutsCache = null;
+        invalidateSystemShortcuts();
+        return false;
     });
     const controller = new Gtk.EventControllerKey();
     controller.connect('key-pressed', (_controller, keyval, _keycode, state) => {
@@ -135,6 +146,10 @@ function openCaptureDialog(row, settings, key) {
 // --- Conflict detection against GNOME's own keybinding schemas ---
 
 let systemShortcutsCache = null;
+
+function invalidateSystemShortcuts() {
+    systemShortcutsCache = null;
+}
 
 function systemShortcuts() {
     if (systemShortcutsCache)

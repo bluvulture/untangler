@@ -18,7 +18,7 @@ test('schema, KEYBINDINGS and SHORTCUT_ROWS list the same 17 snap keys in the sa
         read('schemas/org.gnome.shell.extensions.untangler.gschema.xml'),
         /<key name="(snap-[a-z-]+)" type="as">/g);
     const keybindings = matches(read('keybindings.js'), /'(snap-[a-z-]+)':/g);
-    const prefs = matches(read('prefs.js'), /\['(snap-[a-z-]+)', '/g);
+    const prefs = matches(read('prefs.js'), /\['(snap-[a-z-]+)',/g);
     assert.equal(schema.length, 17);
     assert.deepEqual(keybindings, schema);
     assert.deepEqual(prefs, schema);

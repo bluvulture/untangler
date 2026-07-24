@@ -45,6 +45,14 @@ Preference strings use the `untangler` gettext domain. There are no committed
 PO files yet; if you want to contribute a translation, open an issue and we
 will set up `po/` extraction together.
 
+Extraction command (the 17 shortcut labels are stored in a data table and
+marked with `N_`, a no-op wrapper, rather than translated inline — pass both
+keywords or those 17 strings will be silently skipped):
+
+```sh
+xgettext --language=JavaScript --keyword=_ --keyword=N_ untangler@bluvulture/prefs.js
+```
+
 ## Maintainership
 
 Untangler has a single maintainer (@bluvulture), who makes releases and final
