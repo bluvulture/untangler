@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const EXT_DIR = new URL('../untangler@nebojsa.ilic/', import.meta.url);
+const EXT_DIR = new URL('../untangler@bluvulture/', import.meta.url);
 
 function read(name) {
     return readFileSync(new URL(name, EXT_DIR), 'utf8');

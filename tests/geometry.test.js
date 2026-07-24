@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   Action, NO_GAPS, cycleLength, rectForAction, centerRect,
   mapRectToWorkArea, recenterWithin, rectsEqual,
-} from '../untangler@nebojsa.ilic/geometry.js';
+} from '../untangler@bluvulture/geometry.js';
 
 const WA = { x: 0, y: 0, width: 1200, height: 600 };
 const WA_OFF = { x: 100, y: 50, width: 1200, height: 600 };

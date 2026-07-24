@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   Action, NO_GAPS, rectForAction, matchSnappedRect, splitFootprint,
-} from '../untangler@nebojsa.ilic/geometry.js';
+} from '../untangler@bluvulture/geometry.js';
 
 const WA = { x: 0, y: 0, width: 1920, height: 1080 };
 const GAPS = { outer: 10, inner: 8 };

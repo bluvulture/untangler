@@ -39,7 +39,7 @@ All rebindable in Preferences.
 ```bash
 ./scripts/install.sh
 # log out and back in (Wayland), then:
-gnome-extensions enable untangler@nebojsa.ilic
+gnome-extensions enable untangler@bluvulture
 ```
 
 ## Drag snapping modes

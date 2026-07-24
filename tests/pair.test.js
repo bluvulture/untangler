@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   Action, NO_GAPS, rectForAction,
   pickPairSide, pairRects, insetFraction, rectContains,
-} from '../untangler@nebojsa.ilic/geometry.js';
+} from '../untangler@bluvulture/geometry.js';
 
 const WA = { x: 0, y: 0, width: 1200, height: 600 };
 const GAPS = { outer: 10, inner: 8 };

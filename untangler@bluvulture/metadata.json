@@ -1,5 +1,5 @@
 {
-  "uuid": "untangler@nebojsa.ilic",
+  "uuid": "untangler@bluvulture",
   "name": "Untangler",
   "description": "Rectangle-style keyboard window snapping: 17 shortcut actions with repeated-press size cycling, restore, gaps, multi-monitor throws, and extended drag snap zones with live preview.",
   "shell-version": ["46", "47", "48"],

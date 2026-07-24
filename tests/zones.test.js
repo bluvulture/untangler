@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { Action, resolveZone, zoneRect } from '../untangler@nebojsa.ilic/geometry.js';
+import { Action, resolveZone, zoneRect } from '../untangler@bluvulture/geometry.js';
 
 const WA = { x: 0, y: 0, width: 1920, height: 1080 };
 

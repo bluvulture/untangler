@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { CycleTracker } from '../untangler@nebojsa.ilic/cycle.js';
+import { CycleTracker } from '../untangler@bluvulture/cycle.js';
 
 test('repeated same action advances and wraps', () => {
   const t = new CycleTracker();

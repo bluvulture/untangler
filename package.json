@@ -4,6 +4,6 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "check": "for f in 'untangler@nebojsa.ilic'/*.js; do node --check \"$f\" || exit 1; done"
+    "check": "for f in 'untangler@bluvulture'/*.js; do node --check \"$f\" || exit 1; done"
   }
 }
