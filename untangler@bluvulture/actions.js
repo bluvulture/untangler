@@ -7,6 +7,7 @@ import {
     rectsEqual, zoneRect, MIN_PLACEMENT_PX,
 } from './geometry.js';
 import { CycleTracker } from './cycle.js';
+import { logWarn, logError } from './log.js';
 
 // Frame-rect drift beyond this (px) counts as a manual move/resize.
 const MANUAL_CHANGE_TOLERANCE = 2;
@@ -71,6 +72,7 @@ export class ActionDispatcher {
                 return;
             const record = this._ensureRecord(win, frame);
             record.lastApplied = null;
+            record.expectMaximized = true;
             this._mover.maximize(win);
             return;
         }
@@ -80,24 +82,45 @@ export class ActionDispatcher {
         this._applyTracked(win, this._ensureRecord(win, frame), rect);
     }
 
-    // Pair drop (pair spec §5, footprint-split spec §4): place the dragged
-    // window A and drop target B at the rects the caller previewed. Both
-    // get restore records, cycle resets, and settle tracking; B is raised
-    // so the result is visible even if a third window covered its new
-    // area. A keeps focus.
+    // Pair drop — all-or-nothing (B2 spec §3 + §7b): revalidate both
+    // windows and BOTH rects before either moves; place the target (B)
+    // first and roll it back best-effort if the dragged window's placement
+    // fails, so a race can never leave a half-applied pair.
     applyPairRects(winA, winB, aRect, bRect) {
         if (!winA || !winB)
             return;
-        if (!this._snappable(winA) || !this._snappable(winB))
+        if (aRect.width < MIN_PLACEMENT_PX || aRect.height < MIN_PLACEMENT_PX ||
+            bRect.width < MIN_PLACEMENT_PX || bRect.height < MIN_PLACEMENT_PX)
             return;
-        const frameA = this._mover.frameRect(winA);
-        const frameB = this._mover.frameRect(winB);
+        let frameA;
+        let frameB;
+        try {
+            if (!this._snappable(winA) || !this._snappable(winB))
+                return;
+            frameA = this._mover.frameRect(winA);
+            frameB = this._mover.frameRect(winB);
+        } catch (error) {
+            logWarn('pair drop aborted: a window vanished before placement');
+            return;
+        }
         this._freshRecord(winA, frameA);
         this._freshRecord(winB, frameB);
         this._cycles.reset(winA);
         this._cycles.reset(winB);
-        this._applyTracked(winA, this._ensureRecord(winA, frameA), aRect);
-        this._applyTracked(winB, this._ensureRecord(winB, frameB), bRect);
+        const recordB = this._ensureRecord(winB, frameB);
+        try {
+            this._applyTracked(winB, recordB, bRect);
+            this._applyTracked(winA, this._ensureRecord(winA, frameA), aRect);
+        } catch (error) {
+            logError('pair drop failed mid-placement; rolling back the target', error);
+            this._records.delete(winB);
+            try {
+                this._mover.apply(winB, frameB);
+            } catch {
+                // target gone too — nothing left to roll back
+            }
+            return;
+        }
         this._mover.raise(winB);
     }
 
@@ -127,6 +150,7 @@ export class ActionDispatcher {
                 originalMaximized: this._mover.isMaximized(win),
                 lastApplied: null,
                 settling: false,
+                expectMaximized: false,
             };
             this._records.set(win, record);
         }
@@ -137,10 +161,17 @@ export class ActionDispatcher {
     // since our last snap resets the cycle and invalidates restore
     // geometry. Runs on every path that reuses a record — keyboard, zone
     // drop, and pair drop. Returns the still-valid record, or undefined.
+    // §7b: Mutter's maximize flags flip synchronously, so a manual
+    // unmaximize can't be caught by a signal at the moment it happens —
+    // we key on expectMaximized and check it lazily, at the next user
+    // action, same as the manual-move case above.
     _freshRecord(win, frame) {
         let record = this._records.get(win);
-        if (record?.lastApplied && !record.settling &&
-            !rectsEqual(frame, record.lastApplied, MANUAL_CHANGE_TOLERANCE)) {
+        const manualChange = record?.lastApplied && !record.settling &&
+            !rectsEqual(frame, record.lastApplied, MANUAL_CHANGE_TOLERANCE);
+        const manualUnmaximize = record?.expectMaximized &&
+            !this._mover.isMaximized(win);
+        if (record && (manualChange || manualUnmaximize)) {
             this._records.delete(win);
             this._cycles.reset(win);
             record = undefined;
@@ -163,6 +194,7 @@ export class ActionDispatcher {
         if (rect.width < MIN_PLACEMENT_PX || rect.height < MIN_PLACEMENT_PX)
             return;
         record.settling = true;
+        record.expectMaximized = false;
         record.lastApplied = rect;
         this._mover.apply(win, rect, {
             resize,
@@ -194,6 +226,7 @@ export class ActionDispatcher {
         // Maximized geometry is Mutter's, not ours — skip the manual-change
         // comparison on the next action.
         record.lastApplied = null;
+        record.expectMaximized = true;
         this._mover.maximize(win);
     }
 

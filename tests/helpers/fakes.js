@@ -46,6 +46,7 @@ export class FakeWindow {
         this.canMaximizeFlag = canMaximize;
         this.monitor = monitor;
         this.closed = false;
+        this.failApply = false;
     }
 }
 
@@ -82,13 +83,17 @@ export class FakeMover {
     canMove(win) { return win.movable; }
     canMaximize(win) { return win.canMaximizeFlag; }
     isMaximized(win) { return win.maximized; }
-    frameRect(win) { return { ...win.frame }; }
+    frameRect(win) {
+        if (win.closed) throw new Error('window closed');
+        return { ...win.frame };
+    }
     workArea(win) { return { ...this._workAreas[win.monitor] }; }
     monitorCount() { return this._workAreas.length; }
     currentMonitor(win) { return win.monitor; }
     workAreaForMonitor(_win, index) { return { ...this._workAreas[index] }; }
 
     maximize(win) {
+        if (win.closed) throw new Error('window closed');
         this._pending = this._pending.filter(p => p.win !== win);
         this.calls.push(['maximize', win.id]);
         win.maximized = true;
@@ -100,6 +105,8 @@ export class FakeMover {
     raise(win) { this.calls.push(['raise', win.id]); }
 
     apply(win, rect, { resize = true, onSettled = null } = {}) {
+        if (win.closed) throw new Error('window closed');
+        if (win.failApply) throw new Error('apply failed');
         this.calls.push(['apply', win.id, { ...rect }, resize]);
         if (win.maximized)
             win.maximized = false;

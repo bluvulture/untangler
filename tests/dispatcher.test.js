@@ -204,3 +204,62 @@ test('dispatcher destroy is idempotent', () => {
   dispatcher.destroy();
   dispatcher.destroy();   // must not throw
 });
+
+test('pair drop aborts wholly when the target is gone', () => {
+  const { mover, win: winA, dispatcher } = setup();
+  const winB = new FakeWindow({ frame: { x: 900, y: 50, width: 700, height: 500 } });
+  mover.closeWindow(winB);
+  dispatcher.applyPairRects(winA, winB,
+    rectForAction(WA, Action.LEFT_HALF, 0), rectForAction(WA, Action.RIGHT_HALF, 0));
+  assert.equal(mover.calls.filter(c => c[0] === 'apply').length, 0);
+});
+
+test('pair drop aborts wholly when either rect is sub-minimum', () => {
+  const { mover, win: winA, dispatcher } = setup();
+  const winB = new FakeWindow();
+  dispatcher.applyPairRects(winA, winB,
+    rectForAction(WA, Action.LEFT_HALF, 0), { x: 0, y: 0, width: 10, height: 10 });
+  assert.equal(mover.calls.filter(c => c[0] === 'apply').length, 0);
+});
+
+test('pair drop places the target first and rolls it back if the dragged window fails', () => {
+  const { mover, win: winA, dispatcher } = setup();
+  const winB = new FakeWindow({ frame: { x: 900, y: 50, width: 700, height: 500 } });
+  const beforeB = { ...winB.frame };
+  const aRect = rectForAction(WA, Action.LEFT_HALF, 0);
+  const bRect = rectForAction(WA, Action.RIGHT_HALF, 0);
+  // A dies between revalidation and placement: close it after the frame
+  // reads by making only apply() fail for it.
+  winA.failApply = true;
+  dispatcher.applyPairRects(winA, winB, aRect, bRect);
+  mover.settle();
+  const appliesForB = mover.calls.filter(c => c[0] === 'apply' && c[1] === winB.id);
+  assert.deepEqual(appliesForB[0][2], bRect);                     // B placed first
+  assert.deepEqual(appliesForB[appliesForB.length - 1][2], beforeB); // then rolled back
+  assert.equal(mover.calls.filter(c => c[0] === 'raise').length, 0);
+});
+
+test('manual unmaximize after our maximize purges the stale record', () => {
+  const { mover, win, dispatcher } = setup();
+  const before = { ...win.frame };
+  dispatcher.run(Action.MAXIMIZE);
+  // user unmaximizes manually and moves the window
+  win.maximized = false;
+  win.frame = { x: 50, y: 60, width: 640, height: 480 };
+  const manual = { ...win.frame };
+  dispatcher.run(Action.RESTORE); mover.settle();
+  // stale original must NOT be applied; restore is a no-op (record purged)
+  assert.equal(mover.calls.filter(c => c[0] === 'apply').length, 0);
+  dispatcher.run(Action.LEFT_HALF); mover.settle();
+  dispatcher.run(Action.RESTORE); mover.settle();
+  assert.deepEqual(lastApply(mover)[2], manual);                 // re-baselined
+  void before;
+});
+
+test('record survives while the window stays maximized', () => {
+  const { mover, win, dispatcher } = setup();
+  const before = { ...win.frame };
+  dispatcher.run(Action.MAXIMIZE);
+  dispatcher.run(Action.RESTORE); mover.settle();
+  assert.deepEqual(lastApply(mover)[2], before);                 // still restores
+});
