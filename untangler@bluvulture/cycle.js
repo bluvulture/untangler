@@ -2,34 +2,39 @@
 // cycle.js — CycleTracker (spec 3.2): per-window repeated-press state.
 // Pure JS, no Shell imports — unit-tested under Node.
 //
-// Rectangle semantics: no timeout; the cycle advances only when the same
-// action repeats on the same window, wraps around, and resets when any
-// other action fires. Manual-move invalidation is the dispatcher's job
-// (it calls reset()).
+// Keys are objects (the dispatcher passes the Meta.Window itself), held in
+// a WeakMap so state can never outlive its window and window-id reuse can
+// never alias state. clear() bumps a generation instead of iterating —
+// WeakMaps are not enumerable, and O(1) is what we want anyway.
 
 export class CycleTracker {
     constructor() {
-        this._states = new Map();
+        this._states = new WeakMap();
+        this._generation = 0;
     }
 
-    advance(windowId, action, length) {
-        const previous = this._states.get(windowId);
+    advance(key, action, length) {
+        const previous = this._states.get(key);
         let index = 0;
-        if (previous && previous.action === action)
+        if (previous && previous.generation === this._generation &&
+            previous.action === action)
             index = (previous.index + 1) % length;
-        this._states.set(windowId, { action, index });
+        this._states.set(key, { action, index, generation: this._generation });
         return index;
     }
 
-    peek(windowId) {
-        return this._states.get(windowId) ?? null;
+    peek(key) {
+        const state = this._states.get(key);
+        if (!state || state.generation !== this._generation)
+            return null;
+        return { action: state.action, index: state.index };
     }
 
-    reset(windowId) {
-        this._states.delete(windowId);
+    reset(key) {
+        this._states.delete(key);
     }
 
     clear() {
-        this._states.clear();
+        this._generation += 1;
     }
 }
