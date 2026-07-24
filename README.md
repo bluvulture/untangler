@@ -15,8 +15,8 @@ Rectangle-style keyboard window snapping for GNOME Shell 46–48 (Wayland and X1
   thirds, two-thirds and sixths with a live translucent preview — a strict
   superset of GNOME's built-in edge tiling
 - Pair tiling: drop a window onto the middle of another window to tile the
-  two side by side (hold the modifier for a ⅔ / ⅓ split) — off/modifier/always
-  in Preferences
+  two side by side (in Always mode, hold the modifier for a ⅔ / ⅓ split) —
+  off/modifier/always in Preferences
 
 ## Default shortcuts
 

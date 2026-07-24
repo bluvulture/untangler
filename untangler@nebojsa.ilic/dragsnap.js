@@ -239,7 +239,8 @@ export class DragSnapManager {
             return null;
         if (pairMode === 'modifier' && !modifierHeld)
             return null;
-        if (!this._window.allows_resize())
+        if (!this._window.allows_resize() &&
+            !(this._window.maximized_horizontally || this._window.maximized_vertically))
             return null;
         const target = this._findPairTarget(x, y, monitorIndex);
         if (!target)
@@ -270,8 +271,12 @@ export class DragSnapManager {
             const frame = { x: r.x, y: r.y, width: r.width, height: r.height };
             if (!rectContains(frame, x, y))
                 continue;
-            if (win.is_fullscreen() || win.get_monitor() !== monitorIndex ||
-                !win.allows_resize())
+            if (win.is_fullscreen() || win.get_monitor() !== monitorIndex)
+                return null;
+            // Maximized counts as pair-eligible (pair spec §2) even though
+            // Mutter reports allows_resize() === false for it.
+            if (!win.allows_resize() &&
+                !(win.maximized_horizontally || win.maximized_vertically))
                 return null;
             if (!rectContains(
                 insetFraction(frame, PAIR_CENTRAL_INSET, PAIR_CENTRAL_INSET), x, y))

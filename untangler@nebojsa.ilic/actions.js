@@ -34,15 +34,8 @@ export class ActionDispatcher {
         const id = this._mover.windowId(win);
         const frame = this._mover.frameRect(win);
 
-        // Lazy manual-change detection: a manual move/resize since our
-        // last snap resets the cycle and invalidates restore geometry.
-        let record = this._records.get(win);
-        if (record?.lastApplied && !record.settling &&
-            !rectsEqual(frame, record.lastApplied, MANUAL_CHANGE_TOLERANCE)) {
-            this._records.delete(win);
-            this._cycles.reset(id);
-            record = undefined;
-        }
+        // Lazy manual-change detection (spec 3.2/3.3).
+        const record = this._freshRecord(win, id, frame);
 
         switch (action) {
         case Action.RESTORE:
@@ -73,13 +66,14 @@ export class ActionDispatcher {
         const id = this._mover.windowId(win);
         this._cycles.reset(id);
         const frame = this._mover.frameRect(win);
+        this._freshRecord(win, id, frame);
         if (zone.action === Action.MAXIMIZE) {
             const record = this._ensureRecord(win, frame);
             record.lastApplied = null;
             this._mover.maximize(win);
             return;
         }
-        if (!this._mover.canResize(win))
+        if (!this._snappable(win))
             return;
         const rect = zoneRect(zone, workArea, this._gaps());
         this._applyTracked(win, this._ensureRecord(win, frame), rect);
@@ -92,13 +86,19 @@ export class ActionDispatcher {
     applyPairTile(winA, winB, workArea, side, variant) {
         if (!winA || !winB)
             return;
-        if (!this._mover.canResize(winA) || !this._mover.canResize(winB))
+        if (!this._snappable(winA) || !this._snappable(winB))
             return;
+        const idA = this._mover.windowId(winA);
+        const idB = this._mover.windowId(winB);
+        const frameA = this._mover.frameRect(winA);
+        const frameB = this._mover.frameRect(winB);
+        this._freshRecord(winA, idA, frameA);
+        this._freshRecord(winB, idB, frameB);
         const { a, b } = pairRects(workArea, side, variant, this._gaps());
-        this._cycles.reset(this._mover.windowId(winA));
-        this._cycles.reset(this._mover.windowId(winB));
-        this._applyTracked(winA, this._ensureRecord(winA, this._mover.frameRect(winA)), a);
-        this._applyTracked(winB, this._ensureRecord(winB, this._mover.frameRect(winB)), b);
+        this._cycles.reset(idA);
+        this._cycles.reset(idB);
+        this._applyTracked(winA, this._ensureRecord(winA, frameA), a);
+        this._applyTracked(winB, this._ensureRecord(winB, frameB), b);
         this._mover.raise(winB);
     }
 
@@ -118,6 +118,28 @@ export class ActionDispatcher {
         return record;
     }
 
+    // Lazy manual-change detection (spec 3.2/3.3): a manual move/resize
+    // since our last snap resets the cycle and invalidates restore
+    // geometry. Runs on every path that reuses a record — keyboard, zone
+    // drop, and pair drop. Returns the still-valid record, or undefined.
+    _freshRecord(win, id, frame) {
+        let record = this._records.get(win);
+        if (record?.lastApplied && !record.settling &&
+            !rectsEqual(frame, record.lastApplied, MANUAL_CHANGE_TOLERANCE)) {
+            this._records.delete(win);
+            this._cycles.reset(id);
+            record = undefined;
+        }
+        return record;
+    }
+
+    // Mutter reports allows_resize() === false for maximized windows, but
+    // snapping one is exactly the unmaximize-first case the spec demands
+    // (v1 spec 3.7, pair spec §2) — maximized counts as resizable here.
+    _snappable(win) {
+        return this._mover.canResize(win) || this._mover.isMaximized(win);
+    }
+
     // Route every tracked placement through the mover's settle callback:
     // the final rect can legitimately differ from the requested one
     // (min-size clamp → read-back re-centering), and treating that as a
@@ -135,8 +157,9 @@ export class ActionDispatcher {
     }
 
     _snap(win, id, frame, action) {
-        // Spec 3.7: resize actions skip fixed-size windows.
-        if (!this._mover.canResize(win))
+        // Spec 3.7: resize actions skip fixed-size windows (maximized
+        // windows count as resizable — see _snappable).
+        if (!this._snappable(win))
             return;
         const length = this._settings.get_boolean('cycle-sizes-enabled')
             ? cycleLength(action) : 1;
