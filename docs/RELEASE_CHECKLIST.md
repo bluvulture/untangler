@@ -36,10 +36,14 @@ Esc cancellation; rapid repeated shortcuts; pair target closed mid-drop.
       `gnome-extensions install`
 - [ ] Verify the downloaded release asset against the tag:
       VERIFY_ZIP=<downloaded zip> npm run verify
-- [ ] For 0.9.0 (pre-public review): decide commit-author identity/history
-      handling while rewrite is still cheap; enable private vulnerability
-      reporting; enable Discussions (or update SUPPORT.md); then flip the
-      repository to public
+- [ ] For 0.9.0 (pre-public review) — identity DECIDED 2026-07-24:
+      pseudonymous (bluvulture; repo git config already set). Before
+      flipping public: rewrite history once with git filter-repo (map all
+      author/committer names to bluvulture + the noreply email; drop the
+      old-UUID docs/superpowers blobs from history), force-push the
+      rewritten main (private repo, no forks — safe), re-verify CI green;
+      enable private vulnerability reporting; enable Discussions (or
+      update SUPPORT.md); then flip the repository to public
 
 ## EGO submission (at/after 0.9.0)
 - [ ] Zip passes EGO review guidelines (teardown audit re-run)
