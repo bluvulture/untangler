@@ -4,7 +4,7 @@
 // passed into the constructor (spec §2 purity boundary).
 import {
     Action, rectForAction, cycleLength, centerRect, mapRectToWorkArea,
-    rectsEqual, zoneRect,
+    rectsEqual, zoneRect, MIN_PLACEMENT_PX,
 } from './geometry.js';
 import { CycleTracker } from './cycle.js';
 
@@ -67,6 +67,8 @@ export class ActionDispatcher {
         const frame = this._mover.frameRect(win);
         this._freshRecord(win, frame);
         if (zone.action === Action.MAXIMIZE) {
+            if (!this._mover.canMaximize(win))
+                return;
             const record = this._ensureRecord(win, frame);
             record.lastApplied = null;
             this._mover.maximize(win);
@@ -120,7 +122,12 @@ export class ActionDispatcher {
     _ensureRecord(win, frame) {
         let record = this._records.get(win);
         if (!record) {
-            record = { original: { ...frame }, lastApplied: null, settling: false };
+            record = {
+                original: { ...frame },
+                originalMaximized: this._mover.isMaximized(win),
+                lastApplied: null,
+                settling: false,
+            };
             this._records.set(win, record);
         }
         return record;
@@ -153,6 +160,8 @@ export class ActionDispatcher {
     // (min-size clamp → read-back re-centering), and treating that as a
     // manual move would wrongly reset the cycle and drop restore geometry.
     _applyTracked(win, record, rect, resize = true) {
+        if (rect.width < MIN_PLACEMENT_PX || rect.height < MIN_PLACEMENT_PX)
+            return;
         record.settling = true;
         record.lastApplied = rect;
         this._mover.apply(win, rect, {
@@ -178,6 +187,8 @@ export class ActionDispatcher {
     }
 
     _maximize(win, frame) {
+        if (!this._mover.canMaximize(win))
+            return;
         this._cycles.advance(win, Action.MAXIMIZE, 1);
         const record = this._ensureRecord(win, frame);
         // Maximized geometry is Mutter's, not ours — skip the manual-change
@@ -199,9 +210,12 @@ export class ActionDispatcher {
         this._cycles.reset(win);
         if (!record?.original)
             return;
-        const original = record.original;
+        const { original, originalMaximized } = record;
         this._records.delete(win);
-        this._mover.apply(win, original);
+        if (originalMaximized)
+            this._mover.maximize(win);
+        else
+            this._mover.apply(win, original);
     }
 
     _moveToDisplay(win, frame, direction) {

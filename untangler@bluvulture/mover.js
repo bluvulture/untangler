@@ -45,10 +45,6 @@ export class WindowMover {
         return window;
     }
 
-    windowId(window) {
-        return window.get_id();
-    }
-
     canResize(window) {
         return window.allows_resize();
     }
@@ -82,6 +78,10 @@ export class WindowMover {
 
     isMaximized(window) {
         return Boolean(window.maximized_horizontally || window.maximized_vertically);
+    }
+
+    canMaximize(window) {
+        return window.can_maximize();
     }
 
     raise(window) {

@@ -64,10 +64,11 @@ test('manual move after a snap resets the cycle and re-baselines restore', () =>
 test('min-size clamp: settle re-centers and the next press still cycles', () => {
   const { mover, dispatcher } = setup();
   mover.setClampSize({ width: 900, height: 800 });
-  dispatcher.run(Action.FIRST_THIRD); mover.settle();
-  dispatcher.run(Action.FIRST_THIRD); mover.settle();          // must NOT read as manual move
-  const applies = mover.calls.filter(c => c[0] === 'apply');
-  assert.equal(applies.length, 2);                              // cycled, not reset-restored
+  dispatcher.run(Action.LEFT_HALF); mover.settle();
+  dispatcher.run(Action.LEFT_HALF); mover.settle();
+  // The buggy path (settle not updating lastApplied) reads the re-centered
+  // frame as a manual move and resets to index 0 — this asserts the advance.
+  assert.deepEqual(lastApply(mover)[2], rectForAction(WA, Action.LEFT_HALF, 1));
 });
 
 test('fixed-size window: resize actions no-op, center still works', () => {
@@ -107,6 +108,29 @@ test('trackedRect: fresh after settle, null when frame drifts', () => {
   assert.deepEqual(dispatcher.trackedRect(win, mover.frameRect(win)), rect);
   win.frame.x += 50;
   assert.equal(dispatcher.trackedRect(win, mover.frameRect(win)), null);
+});
+
+test('maximize is gated on canMaximize', () => {
+  const { mover, dispatcher } = setup({ canMaximize: false });
+  dispatcher.run(Action.MAXIMIZE);
+  assert.equal(mover.calls.filter(c => c[0] === 'maximize').length, 0);
+  const { mover: m2, dispatcher: d2 } = setup();
+  d2.run(Action.MAXIMIZE);
+  assert.equal(m2.calls.filter(c => c[0] === 'maximize').length, 1);
+});
+
+test('restore re-maximizes a window that was maximized before the first snap', () => {
+  const { mover, dispatcher } = setup({ maximized: true });
+  dispatcher.run(Action.LEFT_HALF); mover.settle();
+  dispatcher.run(Action.RESTORE); mover.settle();
+  assert.ok(mover.calls.some(c => c[0] === 'maximize'));
+});
+
+test('rects below MIN_PLACEMENT_PX are never applied', () => {
+  const tinyWA = { x: 0, y: 0, width: 40, height: 40 };
+  const { mover, dispatcher } = setup({}, {}, { workAreas: [tinyWA] });
+  dispatcher.run(Action.FIRST_THIRD);                    // third of 40px = 13 < 16
+  assert.equal(mover.calls.filter(c => c[0] === 'apply').length, 0);
 });
 
 test('monitor move maps the fractional rect and resets the cycle', () => {

@@ -24,11 +24,12 @@ GNOME Shell caches extension modules per process.
   runs in a separate GTK process.
 - **Coverage honesty:** Node tests currently cover the pure modules
   (`geometry.js`, `cycle.js` — geometry, cycling, zones, pair and footprint
-  math) plus the schema/keybinding sync check. `actions.js` is Node-loadable
-  and fake-based dispatcher tests are planned; `mover.js`, `keybindings.js`,
-  `dragsnap.js`, `preview.js`, `prefs.js`, and `extension.js` are shell-side
-  and are validated by the manual matrix in `docs/TESTING.md` — never present
-  pure-module coverage as whole-extension coverage.
+  math) plus the schema/keybinding sync check. `actions.js` (the dispatcher)
+  is covered by fake-based Node tests in `tests/dispatcher.test.js`;
+  `mover.js`, `keybindings.js`, `dragsnap.js`, `preview.js`, `prefs.js`, and
+  `extension.js` are shell-side and are validated by the manual matrix in
+  `docs/TESTING.md` — never present pure-module coverage as whole-extension
+  coverage.
 - Tests first (TDD) for any behavior change; every signal/source/actor
   acquired in `enable()` is released in `disable()` (EGO requirement).
 - Inbound contributions are accepted under GPL-2.0-or-later.

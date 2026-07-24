@@ -78,7 +78,6 @@ export class FakeMover {
 
     // --- WindowMover facade (mirrors mover.js) ---
     focusedWindow() { return this._focus; }
-    windowId(win) { return win.id; }
     canResize(win) { return win.resizable && !win.maximized; } // Mutter: maximized => false
     canMove(win) { return win.movable; }
     canMaximize(win) { return win.canMaximizeFlag; }
@@ -112,6 +111,9 @@ export class FakeMover {
             applied = { width: win.frame.width, height: win.frame.height };
         }
         win.frame = { x: rect.x, y: rect.y, width: win.frame.width, height: win.frame.height };
+        // Mirror mover.js decision 10: a new placement cancels the same
+        // window's pending deferred ops.
+        this._pending = this._pending.filter(p => p.win !== win);
         this._pending.push({ win, rect, applied, onSettled });
     }
 

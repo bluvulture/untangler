@@ -10,10 +10,12 @@ or a real session. Host verified: GNOME Shell 46 / Ubuntu 24.04.
 - [ ] Manually moving/resizing a window resets its cycle and invalidates Restore
 - [ ] Restore returns the window to pre-snap geometry
 - [ ] Gaps: set outer=10, inner=8 — Left+Right half tile with an 8 px seam
+- [ ] Gaps at 128 px on a small monitor: snaps stay usable, nothing invalid applied
 - [ ] Min-size app (GNOME Calculator): snap to a small third — window re-centers within the zone
 - [ ] CSD app (Text Editor), XWayland app (`GDK_BACKEND=x11 gedit`): frame-rect snapping correct
 - [ ] Fixed-size window: resize actions do nothing; Center and Next Display still work
 - [ ] Maximized window: any snap unmaximizes first, no race/flicker
+- [ ] Maximize shortcut on a can't-maximize window: no-op
 - [ ] Two monitors: Next/Previous Display preserves relative size and wraps; work areas respected at different scales
 
 ## Drag snapping
@@ -26,6 +28,7 @@ or a real session. Host verified: GNOME Shell 46 / Ubuntu 24.04.
 - [ ] Esc during drag: preview hides, no snap
 - [ ] Drop outside any zone: plain move, no snap
 - [ ] Drag across monitor boundary: preview jumps to the other monitor's work area
+- [ ] Fixed-size window: dragging shows no zone/pair previews at all
 - [ ] Restore after a drag-snap returns pre-drag size
 
 ## Lifecycle
@@ -41,7 +44,7 @@ or a real session. Host verified: GNOME Shell 46 / Ubuntu 24.04.
 - [ ] Pointer in an edge band while over B: edge zone wins, single preview
 - [ ] B maximized: pair-tile unmaximizes and tiles it
 - [ ] B non-resizable: plain move (no pair preview)
-- [ ] Restore on B returns its pre-pair geometry; Restore on A returns its drop-time frame
+- [ ] Restore is session-original: it returns each window to its geometry from before Untangler's current placement chain (a manual move re-baselines); previously-maximized windows re-maximize
 - [ ] pair-tile-mode = With modifier: pair only while Ctrl held (halves only, no ⅔ variant)
 - [ ] drag-snap-mode = Modifier-only: Ctrl gates zones AND pair; releasing Ctrl mid-drag clears the pair preview
 - [ ] Esc during drag while the pair preview is visible: no snap, both windows unchanged

@@ -121,6 +121,11 @@ export class DragSnapManager {
             return;
         if (!window || window.get_window_type() !== Meta.WindowType.NORMAL)
             return;
+        // Fixed-size windows can't take any zone or pair placement — don't
+        // track at all, so previews never advertise a no-op drop.
+        if (!window.allows_resize() &&
+            !(window.maximized_horizontally || window.maximized_vertically))
+            return;
         this._stopTracking(); // defensive: never leak a stale poll source
         this._window = window;
         this._startFrame = this._mover.frameRect(window);
@@ -241,9 +246,6 @@ export class DragSnapManager {
         if (pairMode === 'off')
             return null;
         if (pairMode === 'modifier' && !modifierHeld)
-            return null;
-        if (!this._window.allows_resize() &&
-            !(this._window.maximized_horizontally || this._window.maximized_vertically))
             return null;
         const target = this._findPairTarget(x, y, monitorIndex);
         if (!target)
