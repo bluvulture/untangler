@@ -1,0 +1,121 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+
+import { ActionDispatcher } from '../untangler@bluvulture/actions.js';
+import { Action, rectForAction } from '../untangler@bluvulture/geometry.js';
+import { FakeSettings, FakeWindow, FakeMover } from './helpers/fakes.js';
+
+const WA = { x: 0, y: 0, width: 1920, height: 1080 };
+
+function setup(windowProps = {}, settingsOverrides = {}, moverOpts = {}) {
+  const settings = new FakeSettings(settingsOverrides);
+  const mover = new FakeMover({ workAreas: [WA], ...moverOpts });
+  const win = new FakeWindow(windowProps);
+  mover.setFocus(win);
+  const dispatcher = new ActionDispatcher(settings, mover);
+  return { settings, mover, win, dispatcher };
+}
+
+function lastApply(mover) {
+  const applies = mover.calls.filter(c => c[0] === 'apply');
+  return applies[applies.length - 1];
+}
+
+test('left-half snap applies the geometry rect and records a restore point', () => {
+  const { mover, win, dispatcher } = setup();
+  const before = { ...win.frame };
+  dispatcher.run(Action.LEFT_HALF);
+  mover.settle();
+  assert.deepEqual(lastApply(mover)[2], rectForAction(WA, Action.LEFT_HALF, 0));
+  dispatcher.run(Action.RESTORE);
+  mover.settle();
+  assert.deepEqual(lastApply(mover)[2], before);
+});
+
+test('repeated same-action presses cycle through the size table', () => {
+  const { mover, dispatcher } = setup();
+  dispatcher.run(Action.LEFT_HALF); mover.settle();
+  dispatcher.run(Action.LEFT_HALF); mover.settle();
+  assert.deepEqual(lastApply(mover)[2], rectForAction(WA, Action.LEFT_HALF, 1));
+  dispatcher.run(Action.RIGHT_HALF); mover.settle();          // other action resets
+  dispatcher.run(Action.LEFT_HALF); mover.settle();
+  assert.deepEqual(lastApply(mover)[2], rectForAction(WA, Action.LEFT_HALF, 0));
+});
+
+test('cycle-sizes-enabled=false pins the cycle to index 0', () => {
+  const { mover, dispatcher } = setup({}, { 'cycle-sizes-enabled': false });
+  dispatcher.run(Action.LEFT_HALF); mover.settle();
+  dispatcher.run(Action.LEFT_HALF); mover.settle();
+  assert.deepEqual(lastApply(mover)[2], rectForAction(WA, Action.LEFT_HALF, 0));
+});
+
+test('manual move after a snap resets the cycle and re-baselines restore', () => {
+  const { mover, win, dispatcher } = setup();
+  dispatcher.run(Action.LEFT_HALF); mover.settle();
+  win.frame = { x: 400, y: 300, width: 500, height: 400 };     // user drags it away
+  const manual = { ...win.frame };
+  dispatcher.run(Action.LEFT_HALF); mover.settle();            // starts over at index 0
+  assert.deepEqual(lastApply(mover)[2], rectForAction(WA, Action.LEFT_HALF, 0));
+  dispatcher.run(Action.RESTORE); mover.settle();
+  assert.deepEqual(lastApply(mover)[2], manual);               // restore = re-baselined
+});
+
+test('min-size clamp: settle re-centers and the next press still cycles', () => {
+  const { mover, dispatcher } = setup();
+  mover.setClampSize({ width: 900, height: 800 });
+  dispatcher.run(Action.FIRST_THIRD); mover.settle();
+  dispatcher.run(Action.FIRST_THIRD); mover.settle();          // must NOT read as manual move
+  const applies = mover.calls.filter(c => c[0] === 'apply');
+  assert.equal(applies.length, 2);                              // cycled, not reset-restored
+});
+
+test('fixed-size window: resize actions no-op, center still works', () => {
+  const { mover, dispatcher } = setup({ resizable: false });
+  dispatcher.run(Action.LEFT_HALF);
+  assert.equal(mover.calls.filter(c => c[0] === 'apply').length, 0);
+  dispatcher.run(Action.CENTER); mover.settle();
+  const [, , rect, resize] = lastApply(mover);
+  assert.equal(resize, false);
+  assert.equal(rect.width, 800);                               // size preserved
+});
+
+test('maximized window is snappable (allows_resize false but maximized)', () => {
+  const { mover, dispatcher } = setup({ maximized: true });
+  dispatcher.run(Action.LEFT_HALF); mover.settle();
+  assert.deepEqual(lastApply(mover)[2], rectForAction(WA, Action.LEFT_HALF, 0));
+});
+
+test('pair rects: both windows placed, both restorable, target raised', () => {
+  const { mover, win: winA, dispatcher } = setup();
+  const winB = new FakeWindow({ frame: { x: 900, y: 50, width: 700, height: 500 } });
+  const beforeB = { ...winB.frame };
+  const a = rectForAction(WA, Action.LEFT_HALF, 0);
+  const b = rectForAction(WA, Action.RIGHT_HALF, 0);
+  dispatcher.applyPairRects(winA, winB, a, b);
+  mover.settle();
+  assert.ok(mover.calls.some(c => c[0] === 'raise' && c[1] === winB.id));
+  mover.setFocus(winB);
+  dispatcher.run(Action.RESTORE); mover.settle();
+  assert.deepEqual(lastApply(mover)[2], beforeB);
+});
+
+test('trackedRect: fresh after settle, null when frame drifts', () => {
+  const { mover, win, dispatcher } = setup();
+  dispatcher.run(Action.LEFT_HALF); mover.settle();
+  const rect = rectForAction(WA, Action.LEFT_HALF, 0);
+  assert.deepEqual(dispatcher.trackedRect(win, mover.frameRect(win)), rect);
+  win.frame.x += 50;
+  assert.equal(dispatcher.trackedRect(win, mover.frameRect(win)), null);
+});
+
+test('monitor move maps the fractional rect and resets the cycle', () => {
+  const WA2 = { x: 1920, y: 0, width: 1920, height: 1080 };
+  const { mover, win, dispatcher } = setup({}, {}, { workAreas: [WA, WA2] });
+  dispatcher.run(Action.LEFT_HALF); mover.settle();
+  win.monitor = 0;
+  dispatcher.run(Action.NEXT_DISPLAY); mover.settle();
+  const rect = lastApply(mover)[2];
+  assert.equal(rect.x, 1920);                                   // left half of monitor 2
+  assert.equal(rect.width, 960);
+});
