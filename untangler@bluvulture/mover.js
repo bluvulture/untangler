@@ -132,23 +132,41 @@ export class WindowMover {
             window.move_resize_frame(true, rect.x, rect.y, rect.width, rect.height);
         else
             window.move_frame(true, rect.x, rect.y);
-        // Read-back must be deferred: on Wayland the frame rect only
-        // updates once the client acks the configure.
-        this._deferForWindow(window, () => {
+        // Bounded read-back (release plan §Wayland settling): a slow client
+        // may not have acked at +50 ms. Re-read until the size matches the
+        // target or stops changing, up to 3 reads, then settle with the
+        // last observation. Superseded placements still cancel the pending
+        // read via _cancelPendingFor (decision 10).
+        let attempts = 0;
+        let lastSize = null;
+        const readBack = () => {
+            let frame;
             try {
-                const frame = window.get_frame_rect();
-                let finalRect = rect;
-                if (frame.width !== rect.width || frame.height !== rect.height) {
-                    finalRect = recenterWithin(rect, frame.width, frame.height);
-                    window.move_frame(true, finalRect.x, finalRect.y);
-                }
-                onSettled?.(finalRect);
+                frame = window.get_frame_rect();
             } catch {
-                // Window closed while the read-back was pending — nothing
-                // to settle; the dispatcher record is WeakMap-keyed to the
-                // dead window and drops out with it.
+                return; // window closed while the read-back was pending
             }
-        }, 50);
+            attempts += 1;
+            const sizeMatches = frame.width === rect.width && frame.height === rect.height;
+            const stabilized = lastSize !== null &&
+                frame.width === lastSize.width && frame.height === lastSize.height;
+            if (!sizeMatches && !stabilized && attempts < 3) {
+                lastSize = { width: frame.width, height: frame.height };
+                this._deferForWindow(window, readBack, 50);
+                return;
+            }
+            let finalRect = rect;
+            if (!sizeMatches) {
+                finalRect = recenterWithin(rect, frame.width, frame.height);
+                try {
+                    window.move_frame(true, finalRect.x, finalRect.y);
+                } catch {
+                    return;
+                }
+            }
+            onSettled?.(finalRect);
+        };
+        this._deferForWindow(window, readBack, 50);
     }
 
     _cancelPendingFor(window) {
