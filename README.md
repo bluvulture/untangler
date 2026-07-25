@@ -6,7 +6,7 @@ Rectangle-style window snapping for GNOME Shell 46–48 (Wayland and X11):
 keyboard actions with repeated-press size cycling, extended drag snap zones
 with live preview, pair tiling, and footprint splitting.
 
-**Status: 0.9.0 public beta.** The pure geometry core is heavily unit-tested;
+**Status: 0.1.0 public beta.** The pure geometry core is heavily unit-tested;
 GNOME 46/47/48 runtime validation is in progress (see the compatibility
 table). Feedback and bug reports are very welcome.
 
