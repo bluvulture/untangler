@@ -45,12 +45,13 @@ Preference strings use the `untangler` gettext domain. There are no committed
 PO files yet; if you want to contribute a translation, open an issue and we
 will set up `po/` extraction together.
 
-Extraction command (the 17 shortcut labels are stored in a data table and
-marked with `N_`, a no-op wrapper, rather than translated inline — pass both
-keywords or those 17 strings will be silently skipped):
+Extraction command (the 17 shortcut labels live in `traymodel.js`'s
+`ACTION_ROWS` table, shared with `prefs.js`, and are marked with `N_`, a
+no-op wrapper, rather than translated inline — pass both keywords and both
+files, or those 17 strings will be silently skipped):
 
 ```sh
-xgettext --language=JavaScript --keyword=_ --keyword=N_ --from-code=UTF-8 untangler@bluvulture/prefs.js
+xgettext --language=JavaScript --keyword=_ --keyword=N_ --from-code=UTF-8 untangler@bluvulture/prefs.js untangler@bluvulture/traymodel.js
 ```
 
 ## Maintainership
