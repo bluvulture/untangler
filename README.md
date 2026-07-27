@@ -4,11 +4,19 @@
 
 Rectangle-style window snapping for GNOME Shell 46–48 (Wayland and X11):
 keyboard actions with repeated-press size cycling, extended drag snap zones
-with live preview, pair tiling, and footprint splitting.
+with live preview, pair tiling, footprint splitting, and a top-bar menu of
+every action.
 
 **Status: 0.1.0 public beta.** The pure geometry core is heavily unit-tested;
 GNOME 46/47/48 runtime validation is in progress (see the compatibility
 table). Feedback and bug reports are very welcome.
+
+Every snap action is one click away in the top bar, each showing the
+shortcut it is currently bound to:
+
+![Untangler's top-bar menu, open, listing all 17 snap actions grouped into
+halves, quarters, thirds, maximize/center/restore and display moves — each
+with its keyboard shortcut — plus a Preferences item](docs/media/tray-menu.png)
 
 <!-- TODO screenshot: 1920px-wide capture of two windows pair-tiled with the
      dim preview visible mid-drag; take with GNOME Screenshot on Wayland,
