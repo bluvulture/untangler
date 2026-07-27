@@ -41,6 +41,7 @@ else
       EXTRA+=("--extra-source=$base")
     fi
   done
+  EXTRA+=("--extra-source=icons")
   gnome-extensions pack "$UUID" "${EXTRA[@]}" --force --out-dir="$TMP" > /dev/null
   ZIP="$TMP/$UUID.shell-extension.zip"
 fi

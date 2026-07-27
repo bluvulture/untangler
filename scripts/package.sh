@@ -11,6 +11,7 @@ for f in "$UUID"/*.js; do
     EXTRA+=("--extra-source=$base")
   fi
 done
+EXTRA+=("--extra-source=icons")
 gnome-extensions pack "$UUID" "${EXTRA[@]}" --force --out-dir=.
 echo "commit: $(git rev-parse HEAD)"
 sha256sum "$UUID.shell-extension.zip"
