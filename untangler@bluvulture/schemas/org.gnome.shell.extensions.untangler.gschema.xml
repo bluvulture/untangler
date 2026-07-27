@@ -26,6 +26,7 @@
     <key name="outer-gap" type="i"><default>0</default><range min="0" max="128"/><summary>Gap between windows and work-area edge (px)</summary></key>
     <key name="inner-gap" type="i"><default>0</default><range min="0" max="128"/><summary>Gap between adjacent snapped windows (px)</summary></key>
     <key name="cycle-sizes-enabled" type="b"><default>true</default><summary>Repeated presses cycle through size variants</summary></key>
+    <key name="show-tray-icon" type="b"><default>true</default><summary>Show the top bar indicator</summary></key>
 
     <!-- Drag snapping -->
     <key name="drag-snap-mode" type="s">

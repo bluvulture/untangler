@@ -7,30 +7,7 @@ import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';
 
 import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
-
-const N_ = s => s;   // extraction marker only; translated at display time
-
-// Must stay in sync with KEYBINDINGS in keybindings.js (which we cannot
-// import here — it pulls in Shell UI modules).
-const SHORTCUT_ROWS = [
-    ['snap-left-half', N_('Left half')],
-    ['snap-right-half', N_('Right half')],
-    ['snap-top-half', N_('Top half')],
-    ['snap-bottom-half', N_('Bottom half')],
-    ['snap-top-left-quarter', N_('Top-left quarter')],
-    ['snap-top-right-quarter', N_('Top-right quarter')],
-    ['snap-bottom-left-quarter', N_('Bottom-left quarter')],
-    ['snap-bottom-right-quarter', N_('Bottom-right quarter')],
-    ['snap-first-third', N_('First third')],
-    ['snap-center-third', N_('Center third')],
-    ['snap-last-third', N_('Last third')],
-    ['snap-maximize', N_('Maximize')],
-    ['snap-almost-maximize', N_('Almost maximize')],
-    ['snap-center', N_('Center (no resize)')],
-    ['snap-restore', N_('Restore')],
-    ['snap-next-display', N_('Next display')],
-    ['snap-prev-display', N_('Previous display')],
-];
+import { ACTION_ROWS } from './traymodel.js';
 
 export default class UntanglerPrefs extends ExtensionPreferences {
     fillPreferencesWindow(window) {
@@ -56,7 +33,7 @@ function buildShortcutsPage(settings) {
         description: _('Click a row, then press the new shortcut. BackSpace clears, Esc cancels. Conflicts with other extensions cannot be detected.'),
     });
     const syncs = [];
-    for (const [key, label] of SHORTCUT_ROWS) {
+    for (const [key, label] of ACTION_ROWS) {
         const { row, sync } = buildShortcutRow(settings, key, label);
         group.add(row);
         syncs.push(sync);
@@ -189,7 +166,7 @@ function untanglerDuplicate(settings, ownKey, accel) {
     if (!accel)
         return null;
     const normalized = normalizeAccel(accel);
-    for (const [key, label] of SHORTCUT_ROWS) {
+    for (const [key, label] of ACTION_ROWS) {
         if (key === ownKey)
             continue;
         const other = settings.get_strv(key)[0];
@@ -214,8 +191,13 @@ function buildBehaviorPage(settings) {
     const cycling = new Adw.PreferencesGroup({ title: _('Cycling') });
     cycling.add(switchRow(settings, 'cycle-sizes-enabled',
         _('Cycle sizes on repeated press'), _('Left Half → Two Thirds → Third')));
+    const topBar = new Adw.PreferencesGroup({ title: _('Top bar') });
+    topBar.add(switchRow(settings, 'show-tray-icon',
+        _('Show top bar icon'),
+        _('Menu with all snap actions and preferences')));
     page.add(gaps);
     page.add(cycling);
+    page.add(topBar);
     return page;
 }
 
