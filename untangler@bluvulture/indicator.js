@@ -48,6 +48,11 @@ class UntanglerIndicator extends PanelMenu.Button {
 
         settings.bind('show-tray-icon', this, 'visible',
             Gio.SettingsBindFlags.GET);
+
+        // PopupMenu.open() refuses to open an empty menu (isEmpty() guard
+        // runs before the open-state-changed emission), so seed the full
+        // menu once; the open handler rebuilds it with fresh hints.
+        this._rebuildMenu();
     }
 
     destroy() {
