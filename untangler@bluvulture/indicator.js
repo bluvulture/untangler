@@ -39,10 +39,16 @@ class UntanglerIndicator extends PanelMenu.Button {
             this._untrackTarget();
             if (!open)
                 return;
-            this._trackTarget(global.display.get_focus_window()
-                ?? global.display.get_tab_list(Meta.TabList.NORMAL,
-                    global.workspace_manager.get_active_workspace())[0]
-                ?? null);
+            // Same window policy as the keyboard path (mover.focusedWindow):
+            // only NORMAL windows; the MRU fallback also skips minimized
+            // windows the keyboard path could never target.
+            const focus = global.display.get_focus_window();
+            this._trackTarget(
+                focus?.get_window_type() === Meta.WindowType.NORMAL
+                    ? focus
+                    : global.display.get_tab_list(Meta.TabList.NORMAL,
+                        global.workspace_manager.get_active_workspace())
+                        .find(w => !w.minimized) ?? null);
             this._rebuildMenu();
         });
 

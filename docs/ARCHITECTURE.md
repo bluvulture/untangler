@@ -18,9 +18,9 @@ settings names, types, ranges, and defaults.
 | `keybindings.js` | shell process | Meta, Shell, Main, geometry | Registers/removes the 17 shortcuts |
 | `dragsnap.js` | shell process | Clutter, Gio, GLib, Meta, Main, geometry, log, preview | Drag tracking, zone/pair/footprint candidates, edge-tiling ownership |
 | `preview.js` | shell process | Clutter, St | The two translucent preview rects (`.untangler-zone-preview`, `.untangler-zone-preview-dim`) |
-| `indicator.js` | shell process | Clutter, Gio, GObject, Meta, St, PanelMenu, PopupMenu, keybindings, traymodel | Top-bar indicator: action menu with shortcut hints, Preferences item, `show-tray-icon` visibility |
+| `indicator.js` | shell process | Clutter, Gio, GObject, Meta, St, PanelMenu, PopupMenu, keybindings, traymodel, Extension API | Top-bar indicator: action menu with shortcut hints, Preferences item, `show-tray-icon` visibility |
 | `extension.js` | shell process | Extension API, the shell-side modules above, log | Lifecycle only: build on enable, isolated teardown on disable |
-| `prefs.js` | separate GTK process | Adw, Gdk, Gio, Gtk, prefs resource | Preferences dialog; talks to the extension only through GSettings |
+| `prefs.js` | separate GTK process | Adw, Gdk, Gio, Gtk, prefs resource, traymodel | Preferences dialog; talks to the extension only through GSettings |
 
 The purity boundary is enforced by tests being plain-Node: `geometry.js`,
 `cycle.js`, `traymodel.js`, and `actions.js` (through fakes) load without a
