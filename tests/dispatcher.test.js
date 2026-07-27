@@ -296,3 +296,20 @@ test('failed pair drop preserves the target prior restore point', () => {
   dispatcher.run(Action.RESTORE); mover.settle();
   assert.deepEqual(lastApply(mover)[2], beforeB);
 });
+
+test('run() with an explicit window targets it even when focus is elsewhere', () => {
+  const { mover, dispatcher } = setup();
+  const other = new FakeWindow({ frame: { x: 50, y: 50, width: 640, height: 480 } });
+  mover.setFocus(null);
+  dispatcher.run(Action.LEFT_HALF, other);
+  mover.settle();
+  const apply = lastApply(mover);
+  assert.equal(apply[1], other.id);
+  assert.deepEqual(apply[2], rectForAction(WA, Action.LEFT_HALF, 0));
+});
+
+test('run() with an explicit null window is a no-op', () => {
+  const { mover, dispatcher } = setup();
+  dispatcher.run(Action.LEFT_HALF, null);
+  assert.equal(mover.calls.length, 0);
+});

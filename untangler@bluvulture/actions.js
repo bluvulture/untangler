@@ -31,8 +31,7 @@ export class ActionDispatcher {
         this._cycles.clear();
     }
 
-    run(action) {
-        const win = this._mover.focusedWindow();
+    run(action, win = this._mover.focusedWindow()) {
         if (!win)
             return;
         const frame = this._mover.frameRect(win);
