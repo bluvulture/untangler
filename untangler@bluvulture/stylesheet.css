@@ -12,3 +12,10 @@
   background-color: rgba(53, 132, 228, 0.12);
   border-color: rgba(53, 132, 228, 0.4);
 }
+
+/* Shortcut hint at the right edge of indicator menu items; dimming is
+   done with actor opacity so it tracks any shell theme. */
+.untangler-shortcut-hint {
+  font-size: 0.9em;
+  padding-left: 24px;
+}

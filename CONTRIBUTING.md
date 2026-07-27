@@ -51,7 +51,7 @@ no-op wrapper, rather than translated inline — pass both keywords and both
 files, or those 17 strings will be silently skipped):
 
 ```sh
-xgettext --language=JavaScript --keyword=_ --keyword=N_ --from-code=UTF-8 untangler@bluvulture/prefs.js untangler@bluvulture/traymodel.js
+xgettext --language=JavaScript --keyword=_ --keyword=N_ --from-code=UTF-8 untangler@bluvulture/prefs.js untangler@bluvulture/traymodel.js untangler@bluvulture/indicator.js
 ```
 
 ## Maintainership
