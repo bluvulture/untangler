@@ -30,6 +30,8 @@ table). Feedback and bug reports are very welcome.
 - Footprint splitting: drop onto a window that is already snapped to a
   half/quarter/third and the two windows split that region instead — a half
   becomes stacked quarters; splits recurse
+- Top-bar indicator: a Rectangle-style menu of every snap action with its
+  current shortcut, plus quick access to preferences; hideable in settings
 - GTK4/Adwaita preferences: rebindable shortcuts with conflict warnings,
   gaps, cycling toggle, drag/pair modes
 

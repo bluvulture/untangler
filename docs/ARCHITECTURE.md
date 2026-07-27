@@ -11,17 +11,20 @@ settings names, types, ranges, and defaults.
 |---|---|---|---|
 | `geometry.js` | anywhere (Node-tested) | nothing | All geometry math: action rects, cycle tables, gaps, zone resolution, pair/footprint splits, placement invariants |
 | `cycle.js` | anywhere (Node-tested) | nothing | Per-window repeated-press cycle state (WeakMap, generation clear) |
+| `traymodel.js` | anywhere (Node-tested) | nothing | Pure indicator-menu data: action rows shared with prefs, menu groups, accelerator display formatting |
 | `log.js` | anywhere | nothing | `Untangler: `-prefixed warn/error for failure paths |
 | `actions.js` | shell process (Node-loadable) | geometry, cycle, log | ActionDispatcher: orchestrates every placement; owns records; NO direct Mutter access — everything via the injected WindowMover |
 | `mover.js` | shell process | GLib, Meta, geometry | The only file calling `Meta.Window` methods; deferred settle machinery |
 | `keybindings.js` | shell process | Meta, Shell, Main, geometry | Registers/removes the 17 shortcuts |
 | `dragsnap.js` | shell process | Clutter, Gio, GLib, Meta, Main, geometry, log, preview | Drag tracking, zone/pair/footprint candidates, edge-tiling ownership |
 | `preview.js` | shell process | Clutter, St | The two translucent preview rects (`.untangler-zone-preview`, `.untangler-zone-preview-dim`) |
+| `indicator.js` | shell process | Clutter, Gio, GObject, Meta, St, PanelMenu, PopupMenu, keybindings, traymodel | Top-bar indicator: action menu with shortcut hints, Preferences item, `show-tray-icon` visibility |
 | `extension.js` | shell process | Extension API, the shell-side modules above, log | Lifecycle only: build on enable, isolated teardown on disable |
 | `prefs.js` | separate GTK process | Adw, Gdk, Gio, Gtk, prefs resource | Preferences dialog; talks to the extension only through GSettings |
 
 The purity boundary is enforced by tests being plain-Node: `geometry.js`,
-`cycle.js`, and `actions.js` (through fakes) load without a GNOME session.
+`cycle.js`, `traymodel.js`, and `actions.js` (through fakes) load without a
+GNOME session.
 
 ## Placement model
 
@@ -136,12 +139,12 @@ imposed. Recovery command if anything ever goes wrong:
 
 ## Testing
 
-`npm test` (Node ≥ 20): 90 tests over the pure modules and the dispatcher
+`npm test` (Node ≥ 20): 100 tests over the pure modules and the dispatcher
 (via `tests/helpers/fakes.js` — a synchronous WindowMover model with an
 explicit settle pump). Shell-side files (`mover.js`, `keybindings.js`,
-`dragsnap.js`, `preview.js`, `prefs.js`, `extension.js`) are validated by
-`node --check` plus the manual matrix in `docs/TESTING.md` — pure-module
-coverage is never presented as whole-extension coverage. `npm run verify`
-adds schema validation, script checks, and byte-verified reproducible
-packaging (`scripts/verify-package.sh`, also usable against a downloaded
-release zip via `VERIFY_ZIP=…`).
+`dragsnap.js`, `preview.js`, `prefs.js`, `indicator.js`, `extension.js`) are
+validated by `node --check` plus the manual matrix in `docs/TESTING.md` —
+pure-module coverage is never presented as whole-extension coverage.
+`npm run verify` adds schema validation, script checks, and byte-verified
+reproducible packaging (`scripts/verify-package.sh`, also usable against a
+downloaded release zip via `VERIFY_ZIP=…`).

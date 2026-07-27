@@ -20,10 +20,13 @@ All notable changes to Untangler are documented here. The format follows
   to split that region instead (a half becomes stacked quarters).
 - GTK4/Adwaita preferences: shortcut capture with system-conflict warnings,
   gaps, cycling toggle, drag/pair modes.
-- 90 Node-run unit tests over the pure modules and the dispatcher.
+- 100 Node-run unit tests over the pure modules and the dispatcher.
 - Translatable preferences (gettext domain `untangler`); duplicate-shortcut
   warnings inside Untangler; conflict warnings refresh when capturing and
   reopening.
 - Hardened shell boundary: all-or-nothing pair drops, ownership-aware native
   edge-tiling handling, bounded Wayland settle retries, crash-safe lifecycle,
   prefixed failure logging.
+- Top-bar indicator with a Rectangle-style menu of every snap action
+  (current shortcut shown inline) and a Preferences item; the new
+  "Show top bar icon" setting hides it.

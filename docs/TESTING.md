@@ -63,3 +63,12 @@ or a real session. Host verified: GNOME Shell 46 / Ubuntu 24.04.
 - [ ] Drop onto a snapped quarter: splits it side-by-side into eighths (recursion)
 - [ ] After a shell restart, drop onto a keyboard-snapped half: still splits (stateless geometric match)
 - [ ] Free-floating target: still pairs as whole-screen halves
+
+## Top-bar indicator
+- [ ] Icon appears on enable, disappears on disable (and on `show-tray-icon` off, live)
+- [ ] Menu lists all 17 actions in 5 groups plus Preferences…
+- [ ] Clicking an action snaps the window that was focused before the menu opened
+- [ ] Shortcut hints match the Shortcuts page, including after a rebind (reopen the menu)
+- [ ] Menu click with no open windows: no-op, no log spam
+- [ ] Preferences… opens the prefs window
+- [ ] Closing the target window while the menu is open, then clicking an action: no-op, no crash
