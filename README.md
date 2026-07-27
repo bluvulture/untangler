@@ -50,6 +50,8 @@ with its keyboard shortcut — plus a Preferences item](docs/media/tray-menu.png
 | GNOME 46 | validation in progress | validation in progress |
 | GNOME 47 | not yet validated (experimental) | not yet validated (experimental) |
 | GNOME 48 | not yet validated (experimental) | not yet validated (experimental) |
+| GNOME 49 | not yet validated (experimental) | not yet validated (experimental) |
+| GNOME 50 | not yet validated (experimental) | not yet validated (experimental) |
 
 Dated results land here as the release-candidate matrix is executed.
 
