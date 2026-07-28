@@ -7,19 +7,6 @@ import Meta from 'gi://Meta';
 
 import { recenterWithin } from './geometry.js';
 
-// GNOME 49 removes Meta.MaximizeFlags and the flags argument to
-// maximize()/unmaximize() (per the GNOME Shell 49 porting guide). On the
-// supported 46–48 range the flags branch is the live path; the no-flags
-// branch below is dormant future-proofing for an eventual 49 port.
-// Feature-detect once; this is the only version-dependent spot in the
-// codebase.
-let MAXIMIZE_BOTH = null;
-try {
-    MAXIMIZE_BOTH = Meta.MaximizeFlags.BOTH;
-} catch {
-    MAXIMIZE_BOTH = null;
-}
-
 export class WindowMover {
     constructor() {
         this._pendingSources = new Set();
@@ -94,17 +81,11 @@ export class WindowMover {
         // maximizing — it would move the window with stale coordinates and
         // overwrite the dispatcher's `lastApplied = null` marker.
         this._cancelPendingFor(window);
-        if (MAXIMIZE_BOTH !== null)
-            window.maximize(MAXIMIZE_BOTH);
-        else
-            window.maximize();
+        window.maximize(Meta.MaximizeFlags.BOTH);
     }
 
     unmaximize(window) {
-        if (MAXIMIZE_BOTH !== null)
-            window.unmaximize(MAXIMIZE_BOTH);
-        else
-            window.unmaximize();
+        window.unmaximize(Meta.MaximizeFlags.BOTH);
     }
 
     // Apply a target rect: unmaximize/untile first and defer one

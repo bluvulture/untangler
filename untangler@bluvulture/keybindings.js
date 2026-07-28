@@ -7,7 +7,9 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { Action } from './geometry.js';
 
 // GSettings key ('as') → Action. Key names must match the gschema exactly;
-// prefs.js reuses this map for the shortcut rows.
+// indicator.js imports this map for the tray menu's shortcut labels.
+// sync.test.js holds the schema, this map, and traymodel.js's ACTION_ROWS to
+// the same 17 keys.
 export const KEYBINDINGS = Object.freeze({
     'snap-left-half': Action.LEFT_HALF,
     'snap-right-half': Action.RIGHT_HALF,
@@ -36,8 +38,6 @@ export class KeybindingManager {
     }
 
     enable() {
-        if (this._registered.length > 0)
-            return; // idempotent: already enabled
         for (const [name, action] of Object.entries(KEYBINDINGS)) {
             Main.wm.addKeybinding(
                 name,

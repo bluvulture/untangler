@@ -49,8 +49,6 @@ export class DragSnapManager {
     }
 
     enable() {
-        if (this._preview)
-            return; // idempotent: already enabled
         this._preview = new ZonePreview();
         this._grabBeginId = global.display.connect('grab-op-begin',
             (_display, window, op) => this._onGrabBegin(window, op));
@@ -59,19 +57,6 @@ export class DragSnapManager {
         this._settingsChangedId = this._settings.connect('changed',
             (_settings, key) => this._onSettingChanged(key));
         this._syncEdgeTiling();
-    }
-
-    _onSettingChanged(key) {
-        if (key === 'drag-snap-mode') {
-            this._syncEdgeTiling();
-            if (this._settings.get_string('drag-snap-mode') === 'off')
-                this._stopTracking();
-        }
-        if (key === 'show-preview' && !this._settings.get_boolean('show-preview'))
-            this._preview?.hide();
-        // Any relevant knob invalidates the memoized candidate so the next
-        // 16 ms tick recomputes rects and preview with fresh values.
-        this._zoneKey = null;
     }
 
     destroy() {
@@ -92,6 +77,19 @@ export class DragSnapManager {
         this._preview?.destroy();
         this._preview = null;
         this._mutterSettings = null;
+    }
+
+    _onSettingChanged(key) {
+        if (key === 'drag-snap-mode') {
+            this._syncEdgeTiling();
+            if (this._settings.get_string('drag-snap-mode') === 'off')
+                this._stopTracking();
+        }
+        if (key === 'show-preview' && !this._settings.get_boolean('show-preview'))
+            this._preview?.hide();
+        // Any relevant knob invalidates the memoized candidate so the next
+        // 16 ms tick recomputes rects and preview with fresh values.
+        this._zoneKey = null;
     }
 
     // --- Native edge-tiling suppression ---
@@ -232,13 +230,13 @@ export class DragSnapManager {
         const [x, y, mods] = global.get_pointer();
         const mode = this._settings.get_string('drag-snap-mode');
         if (mode === 'off') {
-            this._preview?.hide();
+            this._preview.hide();
             return;
         }
         // 'replace' and 'modifier' are the active modes; anything else is
         // impossible per the schema choices and treated as off.
         if (mode !== 'replace' && mode !== 'modifier') {
-            this._preview?.hide();
+            this._preview.hide();
             return;
         }
         const modifierName = this._settings.get_string('drag-snap-modifier');
@@ -284,18 +282,18 @@ export class DragSnapManager {
         this._zoneWorkArea = workArea;
 
         if (!zone && !pair) {
-            this._preview?.hide();
+            this._preview.hide();
             return;
         }
         if (!this._settings.get_boolean('show-preview'))
             return;
         if (zone)
-            this._preview?.showAt(zoneRect(zone, workArea, gaps));
+            this._preview.showAt(zoneRect(zone, workArea, gaps));
         else
-            this._preview?.showPair(pair.rects.a, pair.rects.b);
+            this._preview.showPair(pair.rects.a, pair.rects.b);
         const actor = this._window.get_compositor_private();
         if (actor)
-            this._preview?.keepBelow(actor);
+            this._preview.keepBelow(actor);
     }
 
     // Pair gating (see ARCHITECTURE.md: interaction rules) + target lookup

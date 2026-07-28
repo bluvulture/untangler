@@ -36,8 +36,7 @@ export class ZonePreview {
     }
 
     keepBelow(windowActor) {
-        if (this._widget && windowActor &&
-            windowActor.get_parent() === this._widget.get_parent())
+        if (windowActor && windowActor.get_parent() === this._widget.get_parent())
             global.window_group.set_child_above_sibling(windowActor, this._widget);
     }
 
@@ -48,15 +47,13 @@ export class ZonePreview {
 
     destroy() {
         // EGO requirement: actors must not outlive disable().
-        this._widget?.destroy();
+        this._widget.destroy();
         this._widget = null;
-        this._secondary?.destroy();
+        this._secondary.destroy();
         this._secondary = null;
     }
 
     _showWidget(widget, rect) {
-        if (!widget)
-            return;
         if (!widget.visible) {
             // First appearance: jump into place and fade in.
             widget.set_position(rect.x, rect.y);
@@ -82,9 +79,7 @@ export class ZonePreview {
     }
 
     _hideWidget(widget) {
-        if (widget) {
-            widget.remove_all_transitions();
-            widget.hide();
-        }
+        widget.remove_all_transitions();
+        widget.hide();
     }
 }

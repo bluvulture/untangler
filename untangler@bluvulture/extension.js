@@ -34,22 +34,18 @@ export default class UntanglerExtension extends Extension {
     }
 
     disable() {
-        // Each teardown step is isolated: one failure cannot strand the
-        // rest.
-        const steps = [
-            () => { this._indicator?.destroy(); this._indicator = null; },
-            () => { this._dragSnap?.destroy(); this._dragSnap = null; },
-            () => { this._keybindings?.disable(); this._keybindings = null; },
-            () => { this._dispatcher?.destroy(); this._dispatcher = null; },
-            () => { this._mover?.destroy(); this._mover = null; },
-        ];
-        for (const step of steps) {
-            try {
-                step();
-            } catch (error) {
-                logError('teardown step failed; continuing', error);
-            }
-        }
+        // Reverse of enable()'s construction order: the indicator goes
+        // first since it references the dispatcher.
+        this._indicator?.destroy();
+        this._indicator = null;
+        this._dragSnap?.destroy();
+        this._dragSnap = null;
+        this._keybindings?.disable();
+        this._keybindings = null;
+        this._dispatcher?.destroy();
+        this._dispatcher = null;
+        this._mover?.destroy();
+        this._mover = null;
         this._settings = null;
     }
 }
