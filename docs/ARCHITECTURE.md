@@ -19,7 +19,7 @@ settings names, types, ranges, and defaults.
 | `dragsnap.js` | shell process | Clutter, Gio, GLib, Meta, Main, geometry, log, preview | Drag tracking, zone/pair/footprint candidates, edge-tiling ownership |
 | `preview.js` | shell process | Clutter, St | The two translucent preview rects (`.untangler-zone-preview`, `.untangler-zone-preview-dim`) |
 | `indicator.js` | shell process | Clutter, Gio, GObject, Meta, St, PanelMenu, PopupMenu, keybindings, traymodel, Extension API | Top-bar indicator: action menu with shortcut hints, Preferences item, `show-tray-icon` visibility |
-| `extension.js` | shell process | Extension API, the shell-side modules above, log | Lifecycle only: build on enable, isolated teardown on disable |
+| `extension.js` | shell process | Extension API, the shell-side modules above, log | Lifecycle only: build on enable (rolling back through `disable()` if construction throws), tear down in reverse on disable |
 | `prefs.js` | separate GTK process | Adw, Gdk, Gio, Gtk, prefs resource, traymodel | Preferences dialog; talks to the extension only through GSettings |
 
 The purity boundary is enforced by tests being plain-Node: `geometry.js`,
@@ -127,8 +127,10 @@ imposed. Recovery command if anything ever goes wrong:
 
 ## GNOME version notes
 
-- `Meta.MaximizeFlags` is removed in GNOME **49** (not 48): `mover.js`
-  feature-detects once; the flags branch is live on 46–48.
+- `Meta.MaximizeFlags` is removed in GNOME **49** (not 48). We target 46–48
+  only, so `mover.js` calls `window.maximize(Meta.MaximizeFlags.BOTH)`
+  directly; a 49 port must drop the flags argument (see the GNOME Shell 49
+  porting guide).
 - Mutter reports `allows_resize() === false` for fully-maximized windows —
   everywhere we gate on resizability, "maximized" counts as snappable
   (`_snappable`), because snapping a maximized window is the
